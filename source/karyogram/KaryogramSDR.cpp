@@ -2416,7 +2416,7 @@ void Karyogram::drawRingFragment(
     const double radialHeight = bandThickness;
 
     // Safeguard: keep the mark narrower than it is tall, so it always reads as a radial (vertical at 12 o'clock) centromere. On a small ring
-    // the centromere is a large share of the ring (e.g. a 14.6 Mbp ring holding the 2.7 Mbp generic centromere of --karyogram other), and
+    // the centromere is a large share of the ring (e.g. a 14.6 Mbp ring holding the 2.7 Mbp generic centromere of -ko), and
     // sizing the width by that share alone made the mark wider than the band and turned it horizontal.
     const double maxTangentialWidth = 0.6 * radialHeight;
     const double tangentialWidth = std::min(std::max(5.0, centromereFraction * M_PI * diameter), maxTangentialWidth);

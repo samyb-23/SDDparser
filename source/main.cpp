@@ -14,6 +14,7 @@
 #include <unistd.h>                                             // isatty, fileno
 #endif
 
+#include "SDDparserVersion.h"
 #include "SDDparser.h"
 #include "SDRparser.h"
 #include "Karyogram.h"
@@ -27,98 +28,192 @@ namespace
     void printUsage()
     {
         std::cout
-            << "SDDparser\n\n"
+            << SDDPARSER_VERSION_TEXT << "\n\n"
             << "Usage:\n"
-            << "  ./SDDparser <SDD file>\n"
-            << "  ./SDDparser <SDD file> --karyogram human|other [--save-png] [--save-svg] [--save-zip]\n"
-            << "  ./SDDparser -sdr <SDR file>\n"
-            << "  ./SDDparser -sdr <SDR file> --karyogram human|other [--save-png] [--save-svg] [--save-zip]\n\n"
-            << "Karyograms open in a web viewer in your browser. Add --save-png and/or\n"
-            << "--save-svg to write them as PNG and/or SVG files next to the input file instead.\n"
-            << "Add --save-zip to put all karyograms in one zip file next to the input file instead\n"
-            << "of one file per cell (PNG by default; add --save-svg for SVG, or both flags for both).\n\n"
+            << "  ./SDDparser --sdd <SDD file> [-kh|-ko] [<output directory>] [--save-png] [--save-svg] [--save-zip]\n"
+            << "  ./SDDparser --sdr <SDR file> [-kh|-ko] [<output directory>] [--save-png] [--save-svg] [--save-zip]\n"
+            << "  ./SDDparser --help\n"
+            << "  ./SDDparser --version\n\n"
+            << "Input (exactly one):\n"
+            << "  --sdd <file>   Input is an SDD file (DNA damage)\n"
+            << "  --sdr <file>   Input is an SDR file (mutations)\n\n"
+            << "Output directory (optional):\n"
+            << "  <directory>    Folder for the summary file and karyograms, created if it does not exist.\n"
+            << "                 Default: the folder of the input file.\n\n"
+            << "Karyograms:\n"
+            << "  -kh            Draw one karyogram per cell, human genome (realistic centromere positions)\n"
+            << "  -ko            Draw one karyogram per cell, other genome (generic centromere positions)\n"
+            << "  --save-png     Write PNG files to the output directory instead of opening the web viewer\n"
+            << "  --save-svg     Write SVG files to the output directory instead of opening the web viewer\n"
+            << "  --save-zip     Put all karyograms in one zip file in the output directory instead\n"
+            << "                 (PNG by default; add --save-svg for SVG, or both flags for both)\n\n"
+            << "Help:\n"
+            << "  -h, --help     Show this help\n"
+            << "  -v, --version  Show the SDDparser version\n\n"
+            << "Options may be given in any order.\n"
+            << "Without -kh/-ko, only the summary file is written. With -kh/-ko, karyograms open in a web viewer in your\n"
+            << "browser unless a --save option is given.\n\n"
             << "Examples:\n"
-            << "  ./SDDparser exampleSDD.txt\n"
-            << "  ./SDDparser exampleSDD.txt --karyogram human\n"
-            << "  ./SDDparser -sdr exampleSDR.txt\n"
-            << "  ./SDDparser -sdr exampleSDR.txt --karyogram human\n"
-            << "  ./SDDparser -sdr exampleSDR.txt --karyogram human --save-png\n"
-            << "  ./SDDparser -sdr exampleSDR.txt --karyogram human --save-png --save-svg\n"
-            << "  ./SDDparser -sdr exampleSDR.txt --karyogram human --save-zip\n";
+            << "  ./SDDparser --sdd exampleSDD.txt\n"
+            << "  ./SDDparser --sdd exampleSDD.txt -kh\n"
+            << "  ./SDDparser --sdr exampleSDR.txt\n"
+            << "  ./SDDparser --sdr exampleSDR.txt -ko\n"
+            << "  ./SDDparser --sdr exampleSDR.txt -kh --save-png\n"
+            << "  ./SDDparser --sdr exampleSDR.txt -kh results/ --save-png\n"
+            << "  ./SDDparser --sdd exampleSDD.txt results/\n"
+            << "  ./SDDparser --sdr exampleSDR.txt -kh --save-png --save-svg\n"
+            << "  ./SDDparser --sdr exampleSDR.txt -kh --save-zip\n";
     }
 
-    // Parses an optional "--karyogram human|other [--save-png] [--save-svg] [--save-zip]" option starting at
-    // argv[startIndex]. If nothing follows the preceding arguments,
-    // drawKaryogram is left false and this returns true (nothing to do).
-    // Prints an error and returns false on any malformed input.
-    bool parseKaryogramOption(
-	int argc, 						// Number of command line arguments
-	char* argv[], 						// The command line argument at a particular index
-	int startIndex, 					// Variable to track the different possible commands
-	bool& drawKaryogram, 					// Check if draw karyogram was desired by the user
-	std::string& genomeType,				// Check if genome specified was human or other
-	bool& savePNG,						// Check if the user wants PNG files instead of the web viewer
-	bool& saveSVG,						// Check if the user wants SVG files instead of the web viewer
-	bool& saveZip)						// Check if the user wants all karyograms in one zip file instead of the web viewer
+    // Everything the user asked for on the command line.
+    struct CommandLine
     {
-	drawKaryogram = false;
-        genomeType.clear();
-        savePNG = false;
-        saveSVG = false;
-        saveZip = false;
+        bool showHelp = false;					// -h or --help
+        bool showVersion = false;				// -v or --version
+        bool sdrInput = false;					// --sdr (true) or --sdd (false)
+        std::string filename;					// Input file given after --sdd/--sdr
+        std::string outputDirectory;				// Where the summary and karyograms go; empty = the input file's folder
+        bool drawKaryogram = false;				// -kh or -ko
+        std::string genomeType;					// "human" (-kh) or "other" (-ko)
+        bool savePNG = false;					// --save-png
+        bool saveSVG = false;					// --save-svg
+        bool saveZip = false;					// --save-zip
+    };
 
-        if (argc <= startIndex)
+    // Reads the command line into commandLine. Options may come in any order:
+    //   --sdd <file> | --sdr <file>   (exactly one)
+    //   -kh | -ko                     (karyograms, human or other genome; always written together, so -h stays free for help)
+    //   <output directory>            (optional; the one argument that is not an option)
+    //   --save-png, --save-svg, --save-zip (only with -kh/-ko)
+    // The word after --sdd/--sdr is always taken as the file name, so "-" stays available for reading the data from the terminal later.
+    // Prints an error and returns false on any malformed input.
+    bool parseCommandLine(int argc, char* argv[], CommandLine& commandLine)
+    {
+        commandLine = CommandLine();
+
+        bool inputGiven = false;
+
+        for (int i = 1; i < argc; i++)
         {
-            return true;
-        }
+            const std::string arg = argv[i];
 
-        if (std::string(argv[startIndex]) != "--karyogram")
-        {
-            std::cerr << "ERROR: Unknown command-line option: "
-                      << argv[startIndex] << '\n';
-            return false;
-        }
-
-        drawKaryogram = true;
-
-	if (argc <= startIndex + 1)
-        {
-            std::cerr << "ERROR: --karyogram requires "
-                      << "either 'human' or 'other'.\n";
-            return false;
-        }
-
-        genomeType = argv[startIndex + 1];
-
-        if (genomeType != "human" && genomeType != "other")
-        {
-            std::cerr << "ERROR: Genome type must be "
-                      << "'human' or 'other'.\n";
-            return false;
-        }
-
-        for (int i = startIndex + 2; i < argc; i++)			// --save-png, --save-svg and --save-zip may be given in any order, or together
-        {
-            const std::string option = argv[i];
-            bool& saveFlag = (option == "--save-png") ? savePNG : (option == "--save-svg") ? saveSVG : saveZip;
-
-            if (option != "--save-png" && option != "--save-svg" && option != "--save-zip")
+            if (arg == "-h" || arg == "--help")
             {
-                std::cerr << "ERROR: Unknown command-line option: "
-                          << option << '\n';
+                commandLine.showHelp = true;
+                return true;
+            }
+
+            if (arg == "-v" || arg == "--version")
+            {
+                commandLine.showVersion = true;
+                return true;
+            }
+
+            if (arg == "--sdd" || arg == "--sdr")
+            {
+                if (inputGiven)
+                {
+                    std::cerr << "ERROR: Give one input file, with either --sdd or --sdr (not both, and only once).\n";
+                    return false;
+                }
+
+                if (i + 1 >= argc || (argv[i + 1][0] == '-' && std::string(argv[i + 1]) != "-"))
+                {
+                    std::cerr << "ERROR: " << arg << " requires a file path, e.g. " << arg << " example" << (arg == "--sdd" ? "SDD" : "SDR") << ".txt\n";
+                    return false;
+                }
+
+                inputGiven = true;
+                commandLine.sdrInput = (arg == "--sdr");
+                commandLine.filename = argv[++i];
+                continue;
+            }
+
+            if (arg == "--save-png" || arg == "--save-svg" || arg == "--save-zip")	// May be given in any order, or together
+            {
+                bool& saveFlag = (arg == "--save-png") ? commandLine.savePNG : (arg == "--save-svg") ? commandLine.saveSVG : commandLine.saveZip;
+
+                if (saveFlag)
+                {
+                    std::cerr << "ERROR: " << arg << " was given more than once.\n";
+                    return false;
+                }
+
+                saveFlag = true;
+                continue;
+            }
+
+            // Options from earlier versions: say what replaced them rather than just "unknown option".
+            if (arg == "-sdr" || arg == "-sdd")
+            {
+                std::cerr << "ERROR: " << arg << " is now -" << arg << " (two dashes).\n";
                 return false;
             }
 
-            if (saveFlag)
+            if (arg == "--karyogram")
             {
-                std::cerr << "ERROR: " << option << " was given more than once.\n";
+                std::cerr << "ERROR: --karyogram human|other is now -kh (human) or -ko (other).\n";
                 return false;
             }
 
-            saveFlag = true;
+            if (arg == "-kh" || arg == "-ko")					// Karyograms: -k and the genome type always come together
+            {
+                if (commandLine.drawKaryogram)
+                {
+                    std::cerr << "ERROR: Give -kh or -ko only once.\n";
+                    return false;
+                }
+
+                commandLine.drawKaryogram = true;
+                commandLine.genomeType = (arg == "-kh") ? "human" : "other";
+                continue;
+            }
+
+            if (arg == "-k" || arg == "-o" || arg == "-hk" || arg == "-ok")		// Near misses of -kh/-ko
+            {
+                std::cerr << "ERROR: Unknown command-line option: " << arg << "\n"
+                          << "Karyograms are drawn with -kh (human genome) or -ko (other genome), written as one option.\n";
+                return false;
+            }
+
+            if (arg[0] == '-')
+            {
+                std::cerr << "ERROR: Unknown command-line option: " << arg << "\n";
+                return false;
+            }
+
+            // Anything else is the output directory.
+            if (!commandLine.outputDirectory.empty())
+            {
+                std::cerr << "ERROR: More than one output directory given: " << commandLine.outputDirectory << " and " << arg << "\n";
+                return false;
+            }
+
+            std::error_code error;
+
+            if (std::filesystem::is_regular_file(arg, error))		// Most likely an input file missing its --sdd/--sdr, not a folder to write into
+            {
+                std::cerr << "ERROR: " << arg << " is a file, not an output directory.\n"
+                          << "If it is the input file, say what kind of file it is: --sdd " << arg << " or --sdr " << arg << "\n";
+                return false;
+            }
+
+            commandLine.outputDirectory = arg;
         }
 
-	return true;
+        if (!inputGiven)
+        {
+            std::cerr << "ERROR: No input file. Use --sdd <SDD file> or --sdr <SDR file>.\n";
+            return false;
+        }
+
+        if (!commandLine.drawKaryogram && (commandLine.savePNG || commandLine.saveSVG || commandLine.saveZip))
+        {
+            std::cerr << "ERROR: --save-png, --save-svg and --save-zip save karyograms and need -kh or -ko, e.g. -kh --save-png\n";
+            return false;
+        }
+
+        return true;
     }
 
     // Turns the chromosome labels drawn on a karyogram into clickable areas for the web viewer, each with a summary
@@ -191,21 +286,22 @@ namespace
     bool showInWebViewer(
 	const std::vector<KaryogramImage>& images,		// Karyograms generated in memory, one per cell
 	const std::filesystem::path& inputPath,			// Input SDD/SDR file, used to name the viewer
+	const std::filesystem::path& outputFolder,		// Output directory (default: the input file's folder)
 	const std::string& genomeType)				// human or other, kept in the file name like the PNG outputs
     {
         const bool browserAvailable = canOpenBrowser();
 
-        // Where to write the viewer: a "temp" folder next to the input file, created if needed. It keeps the input folder
+        // Where to write the viewer: a "temp" folder in the output directory, created if needed. It keeps that folder
         // uncluttered while staying easy to find, reopen, or copy back from a remote machine (scp), unlike the system temp folder.
-        std::filesystem::path viewerFolder = inputPath.parent_path() / "temp";
+        std::filesystem::path viewerFolder = outputFolder / "temp";
 
         std::error_code error;
         std::filesystem::create_directories(viewerFolder, error);		// No error if the folder already exists
 
         if (error || !std::filesystem::is_directory(viewerFolder, error))	// Safeguard: e.g. a read-only folder, or a file named "temp"
         {
-            std::cout << "Could not create the folder " << viewerFolder << ", writing the viewer next to the input file instead.\n";
-            viewerFolder = inputPath.parent_path();
+            std::cout << "Could not create the folder " << viewerFolder << ", writing the viewer to " << outputFolder << " instead.\n";
+            viewerFolder = outputFolder;
         }
 
         // Absolute, so the printed path can be reopened from any folder and the browser (or Windows, from WSL) gets an unambiguous path.
@@ -351,11 +447,11 @@ namespace
 
 
     // Delivers the collected karyograms: opens the web viewer, writes the zip file, or reports where the PNG/SVG files went.
-    bool deliverKaryograms(KaryogramOutput& output, const std::filesystem::path& inputPath, const std::string& genomeType)
+    bool deliverKaryograms(KaryogramOutput& output, const std::filesystem::path& inputPath, const std::filesystem::path& outputFolder, const std::string& genomeType)
     {
         if (!output.saveFiles())
         {
-            return output.viewerImages.empty() || showInWebViewer(output.viewerImages, inputPath, genomeType);
+            return output.viewerImages.empty() || showInWebViewer(output.viewerImages, inputPath, outputFolder, genomeType);
         }
 
         if (output.saveZip)
@@ -365,7 +461,7 @@ namespace
                 return true;
             }
 
-            const std::filesystem::path zipPath = inputPath.parent_path() / (inputPath.stem().string() + "_karyograms_" + genomeType + ".zip");
+            const std::filesystem::path zipPath = outputFolder / (inputPath.stem().string() + "_karyograms_" + genomeType + ".zip");
 
             if (!writeZipArchive(output.zipEntries, zipPath))
             {
@@ -376,7 +472,7 @@ namespace
             return true;
         }
 
-        const std::filesystem::path folder = std::filesystem::absolute(inputPath).parent_path();
+        const std::filesystem::path folder = std::filesystem::absolute(outputFolder.empty() ? std::filesystem::path(".") : outputFolder).lexically_normal();
 
         if (output.pngFilesWritten > 0)
         {
@@ -440,52 +536,76 @@ namespace
 
 
 
-int main(int argc, char* argv[]) 					// Variables in main() brackets allow for the second command line argument to be the SDD file path or -h|--help for usage help. Third argument is an option for plotting the corresponding Karyogram if desired using "--karyogram". The fourth argument specifies either 'human' genome or 'other' genome.
+int main(int argc, char* argv[]) 					// Command line: --sdd <file> or --sdr <file>, then optionally -kh (human) or -ko (other) to draw karyograms, an output directory, and --save-png/--save-svg/--save-zip. See printUsage().
 {
 
     // ---------------------------------------
     // Check Command-line arguments
     // ---------------------------------------
 
-    if(argc < 2)							// Must have at least two command-line arguments, the program and the SDD file path.
+    if(argc < 2)							// Must have at least the input type and file.
     {
-	std::cerr << "Usage: ./SDDparser <SDD file> [--karyogram human|other [--save-png] [--save-svg] [--save-zip]]\n"
-		   << "       ./SDDparser -sdr <SDR file> [--karyogram human|other [--save-png] [--save-svg] [--save-zip]]\n";
+	std::cerr << "Usage: ./SDDparser --sdd <SDD file> [-kh|-ko] [<output directory>] [--save-png] [--save-svg] [--save-zip]\n"
+		   << "       ./SDDparser --sdr <SDR file> [-kh|-ko] [<output directory>] [--save-png] [--save-svg] [--save-zip]\n"
+		   << "       ./SDDparser --help\n"
+		   << "       ./SDDparser --version\n";
 	return 1;
     }
 
-    std::string firstArg = argv[1];					// If second command-line argument is -h or --help, return usage examples.
-    if (firstArg == "-h" || firstArg == "--help")
+    CommandLine commandLine;
+
+    if (!parseCommandLine(argc, argv, commandLine))
+    {
+        std::cerr << "Run ./SDDparser --help for usage.\n";
+        return 1;
+    }
+
+    if (commandLine.showHelp)
     {
         printUsage();
         return 0;
+    }
+
+    if (commandLine.showVersion)
+    {
+        std::cout << SDDPARSER_VERSION_TEXT << "\n";
+        return 0;
+    }
+
+    std::cout << SDDPARSER_VERSION_TEXT << "\n";				// First line of every run, so logs show which version produced the outputs
+
+    const std::string filename = commandLine.filename;
+    const bool drawKaryogram = commandLine.drawKaryogram;
+    const std::string genomeType = commandLine.genomeType;
+    const bool humanGenome = (genomeType == "human");
+
+    KaryogramOutput output;
+    output.savePNG = commandLine.savePNG;
+    output.saveSVG = commandLine.saveSVG;
+    output.saveZip = commandLine.saveZip;
+
+    // Summary file and karyograms go to the output directory if one was given (created if needed), else next to the input file.
+    std::filesystem::path outputFolder = std::filesystem::path(filename).parent_path();
+
+    if (!commandLine.outputDirectory.empty())
+    {
+        outputFolder = commandLine.outputDirectory;
+        std::error_code error;
+        std::filesystem::create_directories(outputFolder, error);		// No error if the folder already exists
+
+        if (error || !std::filesystem::is_directory(outputFolder, error))
+        {
+            std::cerr << "ERROR: Could not create the output directory " << outputFolder << (error ? " (" + error.message() + ")" : std::string()) << "\n";
+            return 1;
+        }
     }
 
     // --------------------------------------
     // SDR MODE
     // --------------------------------------
 
-    if (firstArg == "-sdr")
+    if (commandLine.sdrInput)
     {
-        if (argc < 3)
-        {
-            std::cerr << "ERROR: -sdr requires an SDR file path.\n";
-            return 1;
-        }
-
-        std::string filename = argv[2];
-
-        bool drawKaryogram = false;
-        std::string genomeType;
-        KaryogramOutput output;
-
-	if (!parseKaryogramOption(argc, argv, 3, drawKaryogram, genomeType, output.savePNG, output.saveSVG, output.saveZip))
-        {
-            return 1;
-        }
-
-	bool humanGenome = (genomeType == "human");
-
         std::cout << "SDR file processing: " << filename << "...\n";
 
         SDRparser parser;
@@ -505,7 +625,7 @@ int main(int argc, char* argv[]) 					// Variables in main() brackets allow for 
 	// --------------------------------------------- //
 	// SDR karyogram drawing, one cell at a time
 	// --------------------------------------------- //
-        if (drawKaryogram)						// If user specifies --karyogram then draw
+        if (drawKaryogram)						// If user specifies -kh/-ko then draw
         {
 	    Karyogram karyogram;					// Instantiate the Karyogram object karyogram
 	    ProgressLine progress;
@@ -524,7 +644,7 @@ int main(int argc, char* argv[]) 					// Variables in main() brackets allow for 
 		}
 
 		std::filesystem::path cellKaryogramPath =			// Modify name of output karyogram
-            		inputPath.parent_path() /
+            		outputFolder /
             		(inputPath.stem().string() + "_cell" + std::to_string(subHeader.cellID) +
              		"_karyogram_" + genomeType + ".png");
 
@@ -569,7 +689,7 @@ int main(int argc, char* argv[]) 					// Variables in main() brackets allow for 
 	// --------------------------------------
 	// SDR summary file
 	// --------------------------------------
-        std::filesystem::path summaryPath = inputPath.parent_path() /
+        std::filesystem::path summaryPath = outputFolder /
             (inputPath.stem().string() + "_summary.txt");
 
         bool otherError = false;
@@ -584,7 +704,7 @@ int main(int argc, char* argv[]) 					// Variables in main() brackets allow for 
             std::cout << "Summary written to: " << summaryPath << "\n";
         }
 
-        if (drawKaryogram && !deliverKaryograms(output, inputPath, genomeType))
+        if (drawKaryogram && !deliverKaryograms(output, inputPath, outputFolder, genomeType))
         {
             otherError = true;
         }
@@ -596,19 +716,6 @@ int main(int argc, char* argv[]) 					// Variables in main() brackets allow for 
     // --------------------------------------
     // SDD MODE
     // --------------------------------------
-
-    std::string filename = firstArg;
-
-    bool drawKaryogram = false;
-    std::string genomeType;
-    KaryogramOutput output;
-
-    if (!parseKaryogramOption(argc, argv, 2, drawKaryogram, genomeType, output.savePNG, output.saveSVG, output.saveZip))
-    {
-	return 1;
-    }
-
-    bool humanGenome = (genomeType == "human");
 
     // -------------------------------------
     // Load SDD file
@@ -624,7 +731,7 @@ int main(int argc, char* argv[]) 					// Variables in main() brackets allow for 
         return 1;
     }
 
-    std::filesystem::path inputPath(filename);				// Outputs go next to the input SDD file
+    std::filesystem::path inputPath(filename);				// Names the outputs; they go to outputFolder
     const std::vector<Exposure>& exposures = parser.getExposures();
 
     std::vector<int> failedCells;					// Cells whose karyogram could not be drawn or written: an error
@@ -633,7 +740,7 @@ int main(int argc, char* argv[]) 					// Variables in main() brackets allow for 
     // SDD karyogram drawing, one cell at a time
     // ---------------------------------------------
 
-    if (drawKaryogram)							// Check if user passed '--karyogram', meaning drawKaryogram == true.
+    if (drawKaryogram)							// Check if user passed '-kh'/'-ko', meaning drawKaryogram == true.
     {
         const Header& header = parser.getHeader();			// Get header to pass the chromosome sizes and cell cycle phase to the generate Karyogram function.
 
@@ -651,7 +758,7 @@ int main(int argc, char* argv[]) 					// Variables in main() brackets allow for 
     	    singleExposure.push_back(exposure);
 
     	    // Create a separate output filename for this cell.
-    	    std::filesystem::path karyogramPath = inputPath.parent_path() /
+    	    std::filesystem::path karyogramPath = outputFolder /
             (inputPath.stem().string() + "_cell" +
 	    std::to_string(cellID) + "_karyogram_" +
 	    genomeType + ".png");
@@ -706,7 +813,7 @@ int main(int argc, char* argv[]) 					// Variables in main() brackets allow for 
     // Create summary file
     // -------------------------------------
 
-    std::filesystem::path summaryPath = inputPath.parent_path() / 	// Create the path to the summary file as the same path as the input SDD file
+    std::filesystem::path summaryPath = outputFolder / 		// Summary file in the output directory (default: next to the input SDD file)
 	(inputPath.stem().string() + "_summary.txt");
 
     bool otherError = false;
@@ -724,7 +831,7 @@ int main(int argc, char* argv[]) 					// Variables in main() brackets allow for 
         std::cout << "Summary written to: " << summaryPath << "\n";	// Let user know summary file was created successfully
     }
 
-    if (drawKaryogram && !deliverKaryograms(output, inputPath, genomeType))
+    if (drawKaryogram && !deliverKaryograms(output, inputPath, outputFolder, genomeType))
     {
         otherError = true;
     }

@@ -83,7 +83,7 @@ public:
 	const std::vector<double>& doseOrFluence,	// Look at SDD header for dose or fluence to be summarized in Karyogram.
 	const std::vector<int>& incidentParticles,	// Look at SDD header for 'Incident Particles' to be summarized in karyogram.
 	const std::vector<Exposure>& exposures,		// Loop through Exposures object to label chromosome IDs onto the karyogram
-	bool humanGenome,				// Check if the user passed the argument --karyogram human|other. if humanGenome = true, adjust the centromere locations. If humanGenome = false, use generic centromere locations.
+	bool humanGenome,				// Check if the user passed -kh (human) or -ko (other) on the command line. if humanGenome = true, adjust the centromere locations. If humanGenome = false, use generic centromere locations.
         const std::string& outputFilename,		// Specify generic output file name combining the input file prefix with the suffix "_karyogram.png"
         KaryogramFormat format = KaryogramFormat::PNG	// File format: PNG by default, or SVG (vector image, e.g. for "_karyogram.svg").
     );

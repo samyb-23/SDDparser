@@ -1,5 +1,6 @@
 #include "KaryogramViewer.h"
 #include "generalUtilities.h"
+#include "SDDparserVersion.h"
 
 #include <cstdint>
 #include <cstdlib>
@@ -183,8 +184,10 @@ bool writeKaryogramViewer(
          << R"HTML(<style>
 html, body { height: 100%; margin: 0; }
 body { display: flex; flex-direction: column; font-family: sans-serif; background: #e9e9e9; color: #222; }
-header { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 16px; background: #fff; border-bottom: 1px solid #ccc; }
-header h1 { font-size: 16px; margin: 0 12px 0 0; }
+#titlebar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; padding: 6px 16px 0; background: #fff; }
+#version { font-size: 13px; color: #666; white-space: nowrap; }
+#titlebar h1 { font-size: 16px; margin: 0; text-align: center; overflow-wrap: anywhere; }
+header { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 6px 16px 8px; background: #fff; border-bottom: 1px solid #ccc; }
 .group { display: flex; gap: 4px; align-items: center; }
 .spacer { flex: 1; }
 button, select { font-size: 14px; padding: 4px 10px; cursor: pointer; }
@@ -215,7 +218,9 @@ button, select { font-size: 14px; padding: 4px 10px; cursor: pointer; }
     // ------------------------------------------
     // Toolbar: switch between karyograms, zoom controls
     // ------------------------------------------
-    html << "<header>\n<h1>" << safeTitle << "</h1>\n"
+    // Title bar: SDDparser version on the left, input file name in the middle.
+    html << "<div id=\"titlebar\"><span id=\"version\">" << htmlEscape(SDDPARSER_VERSION_TEXT) << "</span><h1>" << safeTitle << "</h1><span></span></div>\n"
+         << "<header>\n"
          << "<div class=\"group\">\n"
          << "<button id=\"prev\" title=\"Previous karyogram\">&larr; Previous</button>\n"
          << "<select id=\"cell\" title=\"Choose a karyogram\">\n";

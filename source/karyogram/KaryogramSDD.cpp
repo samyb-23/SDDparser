@@ -540,13 +540,13 @@ bool Karyogram::renderSDDkaryogram(                                           //
     const size_t xIndex = static_cast<size_t>(chromosomeCount);            // Determining the index of the X chromosome
     const size_t yIndex = static_cast<size_t>(chromosomeCount - 1);        // Determining the index of the Y chromosome
 
-    // Set the centromere locations to the generic positions, replaced if user passed '--karyogram human' option.
+    // Set the centromere locations to the generic positions, replaced if user passed the '-kh' (human) option.
     double xCentromereStart = genericCentromereStart;
     double xCentromereEnd = genericCentromereEnd;
     double yCentromereStart = genericCentromereStart;
     double yCentromereEnd = genericCentromereEnd;
 
-    if (humanGenome)                                                       // If user specified a human genome '--karyogram human'
+    if (humanGenome)                                                       // If user specified a human genome '-kh'
     {
         int xHumanID = 46;
         int yHumanID = 45;
