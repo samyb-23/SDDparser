@@ -10,7 +10,7 @@
 #include "SDDtypes.h"
 #include "SDRtypes.h"
 
-namespace sddparser
+namespace karyoke
 {
 
 struct RGB                                      // Use to define chromosome colors using Red, Green, and Blue codes.
@@ -226,7 +226,7 @@ private:
 
 };
 
-} //namespace sddparser
+} //namespace karyoke
 
 
 #endif

@@ -6,7 +6,7 @@
 
 
 
-namespace sddparser
+namespace karyoke
 {
 
 // Function to generate colors for each chromosome by sampling the color hues
@@ -170,4 +170,4 @@ bool Karyogram::isSecondHomologStrand(int oldStrandID, const SDRmasterHeader& ma
     return oldStrandID % 2 == 0;						// ADJACENT_HOMOLOGS: 1,3,5... first copy, 2,4,6... second copy
 }
 
-} // namespace sddparser
+} // namespace karyoke

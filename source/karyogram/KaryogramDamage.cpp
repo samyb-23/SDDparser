@@ -3,7 +3,7 @@
 
 
 
-namespace sddparser
+namespace karyoke
 {
 
 // Function to return the location in base pairs for a double strand break associated with a given chromosome Number and exposure.
@@ -94,4 +94,4 @@ double Karyogram::getDamageFraction(
     return position / chromosomeSizeBP;                         // If SDD data field 4 is not fractional, return scaled position in fractional format.
 }
 
-} // namespace sddparser
+} // namespace karyoke

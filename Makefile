@@ -2,8 +2,8 @@ CXX = g++
 
 CXXFLAGS = -std=c++17 -Wall -Wextra -O2 -Iinclude
 
-LIB_NAME = libSDDparser.a
-TARGET = SDDparser
+LIB_NAME = libKaryoKE.a
+TARGET = karyoke
 
 SRC_DIR = source
 OBJ_DIR = objects

@@ -13,7 +13,7 @@
 
 
 
-namespace sddparser
+namespace karyoke
 {
 
 // Gap between a chromosome and a column of circular pieces (rings, ecDNA) beside it. Wider than the 6 px stackGap between linear pieces,
@@ -111,7 +111,7 @@ bool Karyogram::generateSDRkaryogram(					// Returns the SDR karyogram as PNG or
 
 bool Karyogram::renderSDRkaryogram(					// Function to draw a karyogram of the rearranged chromosome segments on the karyogram
     const SDRmasterHeader& masterHeader,				// Access SDR master header for intact chromosome sizes
-    const SDRsubHeader& subHeader, 					// Access SDR subheader for cell-by-cell damage/misrepair data
+    const SDRsubHeader& rawSubHeader, 					// Access SDR subheader for cell-by-cell damage/misrepair data
     bool humanGenome,							// Check if human genome specified
     const std::string& outputFilename,					// Output file name of the karyogram, concatenated with the start of the SDR filename (when imageBytes is null).
     std::vector<unsigned char>* imageBytes,				// If non-null, receives the image in memory instead.
@@ -121,9 +121,9 @@ bool Karyogram::renderSDRkaryogram(					// Function to draw a karyogram of the r
     labelRegions.clear();						// Label positions are recorded fresh for every karyogram
 
     // Check for absent data in SDR headers/subHeaders
-    if (subHeader.dataRecords.empty())
+    if (rawSubHeader.dataRecords.empty())
     {
-        std::cerr << "ERROR: No SDR data records to draw for cell " << subHeader.cellID << ".\n";
+        std::cerr << "ERROR: No SDR data records to draw for cell " << rawSubHeader.cellID << ".\n";
         return false;
     }
 
@@ -134,6 +134,10 @@ bool Karyogram::renderSDRkaryogram(					// Function to draw a karyogram of the r
         std::cerr << "ERROR: SDR master header has no chromosome sizes.\n";
         return false;
     }
+
+    // Indels (<= 50 bp) are only counted, never drawn: the chromosomes are drawn from the cell with its indels taken out (see removeIndels), so an
+    // inserted base or a 5 bp gap neither adds a sliver of another chromosome's colour nor splits a piece. The summary box still counts them.
+    const SDRsubHeader subHeader = removeIndels(rawSubHeader, static_cast<int>(sizes[0]));
 
 
     // All data records grouped by their determined home strand (the centromere-bearing fragment when unambiguous, 
@@ -423,7 +427,7 @@ bool Karyogram::renderSDRkaryogram(					// Function to draw a karyogram of the r
     // --------------------------------------------------
     // Summary Box
     // --------------------------------------------------
-    drawSDRsummary(cr, masterHeader, subHeader);
+    drawSDRsummary(cr, masterHeader, rawSubHeader);				// The raw cell, so the box can count its indels.
 
 
     // Resolves the records to draw for a given original strand's slot: its own rearranged records if any exist, or a synthesized intact baseline if it was
@@ -862,7 +866,15 @@ std::vector<PaintedSegment> Karyogram::applyMinimumSegmentHeight(const std::vect
     {
         const double length = bounds[i + 1] - bounds[i];
 
-        if (length > 0.0 && length < minFraction)
+        // Only a stretch some segment paints is enlarged. Pieces listed on neighbouring bases (e.g. 120.000000 then 120.000001) leave a
+        // sliver no segment covers; enlarging it to minPixels opened an unpainted band and shifted everything below it.
+        bool covered = false;
+        for (const PaintedSegment& segment : segments)
+        {
+            covered = covered || (std::min(segment.startFraction, segment.endFraction) <= bounds[i] && std::max(segment.startFraction, segment.endFraction) >= bounds[i + 1]);
+        }
+
+        if (covered && length > 0.0 && length < minFraction)
         {
             isTiny[i] = true;
             tinyTotal += minFraction;
@@ -1897,7 +1909,9 @@ std::vector<PaintedSegment> Karyogram::buildDeletionRemainingSegments(
             const double gapStart = std::max(fragments[i].oldStartPosition, fragments[i].oldEndPosition);
             const double gapEnd = std::min(fragments[i + 1].oldStartPosition, fragments[i + 1].oldEndPosition);
 
-            if (gapEnd > gapStart)
+            // Same 50 bp tolerance as the leading/trailing gaps and the detectors: pieces listed on neighbouring bases (e.g. 120.000000 then
+            // 120.000001) touch, so no white sliver is drawn between them.
+            if (gapEnd > gapStart && !approxEqual(gapStart, gapEnd, delTolerance))
             {
                 PaintedSegment gapSegment{};
                 gapSegment.startFraction = gapStart / originalSizeMbp;
@@ -3050,4 +3064,4 @@ std::vector<const SDRdataRecord*> Karyogram::clusterRecordsForDrawing(
 
 
 
-} // namespace sddparser
+} // namespace karyoke

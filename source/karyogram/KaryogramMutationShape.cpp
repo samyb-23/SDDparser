@@ -10,7 +10,7 @@
 
 
 
-namespace sddparser
+namespace karyoke
 {
 
 // ------------------------------------------------------- //
@@ -971,4 +971,4 @@ bool Karyogram::analyzeHomeStrandGapShape(const std::vector<const SDRdataRecord*
 
 
 
-} // namespace sddparser
+} // namespace karyoke

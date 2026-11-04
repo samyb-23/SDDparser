@@ -9,7 +9,7 @@
 
 
 
-namespace sddparser 
+namespace karyoke 
 {
 
 ChromosomeLayout Karyogram::determineChromosomeLayout(
@@ -459,4 +459,4 @@ bool Karyogram::writeKaryogramImage(							// Finish the karyogram image: to a f
 }
 
 
-} // namespace sddparser
+} // namespace karyoke

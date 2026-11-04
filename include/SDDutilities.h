@@ -11,7 +11,7 @@
 #include <cmath>
 
 
-namespace sddparser
+namespace karyoke
 {
 
 
@@ -644,6 +644,6 @@ inline std::string dataEntriesMeaning(const std::vector<int>& dataEntriesVec)
 
 
 
-} // namespace sddparser
+} // namespace karyoke
 
 #endif

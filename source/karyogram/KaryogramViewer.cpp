@@ -1,6 +1,6 @@
 #include "KaryogramViewer.h"
 #include "generalUtilities.h"
-#include "SDDparserVersion.h"
+#include "KaryoKEversion.h"
 
 #include <cstdint>
 #include <cstdlib>
@@ -12,7 +12,7 @@
 
 
 
-namespace sddparser
+namespace karyoke
 {
 
 namespace
@@ -218,8 +218,8 @@ button, select { font-size: 14px; padding: 4px 10px; cursor: pointer; }
     // ------------------------------------------
     // Toolbar: switch between karyograms, zoom controls
     // ------------------------------------------
-    // Title bar: SDDparser version on the left, input file name in the middle.
-    html << "<div id=\"titlebar\"><span id=\"version\">" << htmlEscape(SDDPARSER_VERSION_TEXT) << "</span><h1>" << safeTitle << "</h1><span></span></div>\n"
+    // Title bar: KaryoKE version on the left, input file name in the middle.
+    html << "<div id=\"titlebar\"><span id=\"version\">" << htmlEscape(KARYOKE_VERSION_TEXT) << "</span><h1>" << safeTitle << "</h1><span></span></div>\n"
          << "<header>\n"
          << "<div class=\"group\">\n"
          << "<button id=\"prev\" title=\"Previous karyogram\">&larr; Previous</button>\n"
@@ -806,4 +806,4 @@ bool openInBrowser(const std::filesystem::path& htmlPath)
     return std::system(command.c_str()) == 0;
 }
 
-} // namespace sddparser
+} // namespace karyoke

@@ -1,7 +1,7 @@
-#ifndef SDDPARSER_LIBRARY_H
-#define SDDPARSER_LIBRARY_H
+#ifndef KARYOKE_LIBRARY_H
+#define KARYOKE_LIBRARY_H
 
-#include "SDDparserVersion.h"
+#include "KaryoKEversion.h"
 #include "SDDparser.h"
 #include "SDDtypes.h"
 #include "SDDutilities.h"

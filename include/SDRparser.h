@@ -7,7 +7,7 @@
 
 #include "SDRtypes.h"
 
-namespace sddparser
+namespace karyoke
 {
 
 class SDRparser
@@ -60,5 +60,5 @@ private:
 
 };
 
-} //namespace sddparser
+} //namespace karyoke
 #endif

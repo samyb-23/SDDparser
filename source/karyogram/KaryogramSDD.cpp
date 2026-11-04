@@ -11,7 +11,7 @@
 
 
 
-namespace sddparser
+namespace karyoke
 {
 
 // Bookkeeping struct, remembers each drawn chromosome's pixel
@@ -1048,4 +1048,4 @@ void Karyogram::drawSingleStrandBreakMarker(						// Function to draw white line
 
 
 
-} // namespace sddparser
+} // namespace karyoke

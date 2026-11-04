@@ -14,55 +14,53 @@
 #include <unistd.h>                                             // isatty, fileno
 #endif
 
-#include "SDDparserVersion.h"
+#include "KaryoKEversion.h"
 #include "SDDparser.h"
 #include "SDRparser.h"
 #include "Karyogram.h"
 #include "KaryogramViewer.h"
 #include "SDRutilities.h"
 
-using namespace sddparser;
+using namespace karyoke;
 
 namespace
 {
     void printUsage()
     {
         std::cout
-            << SDDPARSER_VERSION_TEXT << "\n\n"
+            << KARYOKE_VERSION_TEXT << "\n\n"
             << "Usage:\n"
-            << "  ./SDDparser --sdd <SDD file> [-kh|-ko] [<output directory>] [--save-png] [--save-svg] [--save-zip]\n"
-            << "  ./SDDparser --sdr <SDR file> [-kh|-ko] [<output directory>] [--save-png] [--save-svg] [--save-zip]\n"
-            << "  ./SDDparser --help\n"
-            << "  ./SDDparser --version\n\n"
-            << "Input (exactly one):\n"
-            << "  --sdd <file>   Input is an SDD file (DNA damage)\n"
-            << "  --sdr <file>   Input is an SDR file (mutations)\n\n"
-            << "Output directory (optional):\n"
-            << "  <directory>    Folder for the summary file and karyograms, created if it does not exist.\n"
-            << "                 Default: the folder of the input file.\n\n"
-            << "Karyograms:\n"
-            << "  -kh            Draw one karyogram per cell, human genome (realistic centromere positions)\n"
-            << "  -ko            Draw one karyogram per cell, other genome (generic centromere positions)\n"
-            << "  --save-png     Write PNG files to the output directory instead of opening the web viewer\n"
-            << "  --save-svg     Write SVG files to the output directory instead of opening the web viewer\n"
-            << "  --save-zip     Put all karyograms in one zip file in the output directory instead\n"
-            << "                 (PNG by default; add --save-svg for SVG, or both flags for both)\n\n"
+            << "  ./karyoke --sdd <SDD file> [-kh|-ko [--save-png] [--save-svg] [--save-zip]] [<output directory>]\n"
+            << "  ./karyoke --sdr <SDR file> [-kh|-ko [--save-png] [--save-svg] [--save-zip]] [<output directory>]\n"
+            << "  ./karyoke --help\n"
+            << "  ./karyoke --version\n\n"
+            << "The arguments must be given in this order:\n"
+            << "  1. --sdd <file>   Input is an SDD file (DNA damage), or\n"
+            << "     --sdr <file>   Input is an SDR file (mutations)\n"
+            << "  2. -kh            Draw one karyogram per cell, human genome (realistic centromere positions), or\n"
+            << "     -ko            Draw one karyogram per cell, other genome (generic centromere positions)\n"
+            << "                    Optional. Without it, only the summary file is written. With it, karyograms open\n"
+            << "                    in a web viewer in your browser unless a --save option follows.\n"
+            << "  3. --save-png     Write PNG files to the output directory instead of opening the web viewer\n"
+            << "     --save-svg     Write SVG files to the output directory instead of opening the web viewer\n"
+            << "     --save-zip     Put all karyograms in one zip file in the output directory instead\n"
+            << "                    (PNG by default; add --save-svg for SVG, or both flags for both)\n"
+            << "                    Optional, only after -kh/-ko. The three can be combined, in any order among themselves.\n"
+            << "  4. <directory>    Output folder for the summary file and karyograms, created if it does not exist.\n"
+            << "                    Optional, always the last argument. Default: the folder of the input file.\n\n"
             << "Help:\n"
-            << "  -h, --help     Show this help\n"
-            << "  -v, --version  Show the SDDparser version\n\n"
-            << "Options may be given in any order.\n"
-            << "Without -kh/-ko, only the summary file is written. With -kh/-ko, karyograms open in a web viewer in your\n"
-            << "browser unless a --save option is given.\n\n"
+            << "  -h, --help        Show this help\n"
+            << "  -v, --version     Show the KaryoKE version\n\n"
             << "Examples:\n"
-            << "  ./SDDparser --sdd exampleSDD.txt\n"
-            << "  ./SDDparser --sdd exampleSDD.txt -kh\n"
-            << "  ./SDDparser --sdr exampleSDR.txt\n"
-            << "  ./SDDparser --sdr exampleSDR.txt -ko\n"
-            << "  ./SDDparser --sdr exampleSDR.txt -kh --save-png\n"
-            << "  ./SDDparser --sdr exampleSDR.txt -kh results/ --save-png\n"
-            << "  ./SDDparser --sdd exampleSDD.txt results/\n"
-            << "  ./SDDparser --sdr exampleSDR.txt -kh --save-png --save-svg\n"
-            << "  ./SDDparser --sdr exampleSDR.txt -kh --save-zip\n";
+            << "  ./karyoke --sdd exampleSDD.txt\n"
+            << "  ./karyoke --sdd exampleSDD.txt -kh\n"
+            << "  ./karyoke --sdr exampleSDR.txt\n"
+            << "  ./karyoke --sdr exampleSDR.txt -ko\n"
+            << "  ./karyoke --sdr exampleSDR.txt -kh --save-png\n"
+            << "  ./karyoke --sdr exampleSDR.txt -kh --save-png --save-svg\n"
+            << "  ./karyoke --sdr exampleSDR.txt -kh --save-zip\n"
+            << "  ./karyoke --sdr exampleSDR.txt -kh --save-png results/\n"
+            << "  ./karyoke --sdd exampleSDD.txt results/\n";
     }
 
     // Everything the user asked for on the command line.
@@ -80,136 +78,185 @@ namespace
         bool saveZip = false;					// --save-zip
     };
 
-    // Reads the command line into commandLine. Options may come in any order:
-    //   --sdd <file> | --sdr <file>   (exactly one)
-    //   -kh | -ko                     (karyograms, human or other genome; always written together, so -h stays free for help)
-    //   <output directory>            (optional; the one argument that is not an option)
-    //   --save-png, --save-svg, --save-zip (only with -kh/-ko)
+    bool isSaveOption(const std::string& arg)
+    {
+        return arg == "--save-png" || arg == "--save-svg" || arg == "--save-zip";
+    }
+
+    // Prints why an option that KaryoKE knows was found in the wrong place (or is from an earlier version), e.g.
+    // "--save-png must come right after -kh or -ko". Anything else is reported as an unknown option.
+    void reportMisplacedOption(const std::string& arg, const CommandLine& commandLine, bool afterOutputDirectory)
+    {
+        const std::string example = (commandLine.sdrInput ? "--sdr " : "--sdd ") + commandLine.filename;	// The user's own input, for the examples
+
+        if (arg == "-h" || arg == "--help" || arg == "-v" || arg == "--version")
+        {
+            std::cerr << "ERROR: " << arg << " is used on its own: ./karyoke " << arg << "\n";
+        }
+        else if (arg == "--sdd" || arg == "--sdr")
+        {
+            std::cerr << "ERROR: Give one input file, with either --sdd or --sdr, as the first argument.\n";
+        }
+        else if (arg == "-kh" || arg == "-ko")
+        {
+            std::cerr << (commandLine.drawKaryogram && !afterOutputDirectory
+                ? std::string("ERROR: Give -kh or -ko only once.\n")
+                : "ERROR: " + arg + " must come right after the input file, e.g. " + example + " " + arg + "\n");
+        }
+        else if (isSaveOption(arg) && afterOutputDirectory)
+        {
+            std::cerr << "ERROR: " << arg << " must come before the output directory, which is always the last argument, e.g.\n"
+                      << example << (commandLine.genomeType == "other" ? " -ko " : " -kh ") << arg << " results/\n";
+        }
+        else if (isSaveOption(arg))
+        {
+            std::cerr << "ERROR: " << arg << " was given more than once.\n";
+        }
+        else if (arg == "-sdr" || arg == "-sdd")
+        {
+            std::cerr << "ERROR: " << arg << " is now -" << arg << " (two dashes).\n";
+        }
+        else if (arg == "--karyogram")
+        {
+            std::cerr << "ERROR: --karyogram human|other is now -kh (human) or -ko (other).\n";
+        }
+        else if (arg == "-k" || arg == "-o" || arg == "-hk" || arg == "-ok")		// Near misses of -kh/-ko
+        {
+            std::cerr << "ERROR: Unknown command-line option: " << arg << "\n"
+                      << "Karyograms are drawn with -kh (human genome) or -ko (other genome), written as one option.\n";
+        }
+        else
+        {
+            std::cerr << "ERROR: Unknown command-line option: " << arg << "\n";
+        }
+    }
+
+    // Reads the command line into commandLine. The order is fixed:
+    //   ./karyoke --sdd|--sdr <input file> [-kh|-ko [--save-png] [--save-svg] [--save-zip]] [<output directory>]
+    //   ./karyoke -h|--help
+    //   ./karyoke -v|--version
+    // -kh/-ko write karyograms (human or other genome; always one option, so -h stays free for help). The --save options may only follow
+    // -kh/-ko, in any order among themselves. The output directory, if given, is always the last argument.
     // The word after --sdd/--sdr is always taken as the file name, so "-" stays available for reading the data from the terminal later.
-    // Prints an error and returns false on any malformed input.
+    // Prints an error and returns false on any malformed input. Expects argc >= 2.
     bool parseCommandLine(int argc, char* argv[], CommandLine& commandLine)
     {
         commandLine = CommandLine();
+        const std::string first = argv[1];
 
-        bool inputGiven = false;
+        // Help and version: on their own
+        if (first == "-h" || first == "--help" || first == "-v" || first == "--version")
+        {
+            if (argc > 2)
+            {
+                std::cerr << "ERROR: " << first << " is used on its own: ./karyoke " << first << "\n";
+                return false;
+            }
 
-        for (int i = 1; i < argc; i++)
+            commandLine.showHelp = (first == "-h" || first == "--help");
+            commandLine.showVersion = !commandLine.showHelp;
+            return true;
+        }
+
+        // 1. --sdd <file> or --sdr <file>
+        if (first != "--sdd" && first != "--sdr")
+        {
+            std::error_code error;
+
+            if (first[0] != '-' && std::filesystem::is_regular_file(first, error))	// An input file without --sdd/--sdr
+            {
+                std::cerr << "ERROR: Say what kind of file " << first << " is, as the first argument: --sdd " << first << " or --sdr " << first << "\n";
+            }
+            else if (first == "-sdr" || first == "-sdd")
+            {
+                std::cerr << "ERROR: " << first << " is now -" << first << " (two dashes).\n";
+            }
+            else
+            {
+                std::cerr << "ERROR: The first argument must be --sdd <SDD file> or --sdr <SDR file> (found " << first << ").\n";
+            }
+
+            return false;
+        }
+
+        if (argc < 3 || (argv[2][0] == '-' && std::string(argv[2]) != "-"))
+        {
+            std::cerr << "ERROR: " << first << " requires a file path, e.g. " << first << " example" << (first == "--sdd" ? "SDD" : "SDR") << ".txt\n";
+            return false;
+        }
+
+        commandLine.sdrInput = (first == "--sdr");
+        commandLine.filename = argv[2];
+        int i = 3;
+
+        // 2. Optional -kh or -ko
+        if (i < argc && (std::string(argv[i]) == "-kh" || std::string(argv[i]) == "-ko"))
+        {
+            commandLine.drawKaryogram = true;
+            commandLine.genomeType = (std::string(argv[i]) == "-kh") ? "human" : "other";
+            i++;
+        }
+
+        // 3. Optional --save-png, --save-svg, --save-zip, only after -kh/-ko, in any order among themselves
+        for (; i < argc && isSaveOption(argv[i]); i++)
         {
             const std::string arg = argv[i];
 
-            if (arg == "-h" || arg == "--help")
+            if (!commandLine.drawKaryogram)
             {
-                commandLine.showHelp = true;
-                return true;
-            }
-
-            if (arg == "-v" || arg == "--version")
-            {
-                commandLine.showVersion = true;
-                return true;
-            }
-
-            if (arg == "--sdd" || arg == "--sdr")
-            {
-                if (inputGiven)
-                {
-                    std::cerr << "ERROR: Give one input file, with either --sdd or --sdr (not both, and only once).\n";
-                    return false;
-                }
-
-                if (i + 1 >= argc || (argv[i + 1][0] == '-' && std::string(argv[i + 1]) != "-"))
-                {
-                    std::cerr << "ERROR: " << arg << " requires a file path, e.g. " << arg << " example" << (arg == "--sdd" ? "SDD" : "SDR") << ".txt\n";
-                    return false;
-                }
-
-                inputGiven = true;
-                commandLine.sdrInput = (arg == "--sdr");
-                commandLine.filename = argv[++i];
-                continue;
-            }
-
-            if (arg == "--save-png" || arg == "--save-svg" || arg == "--save-zip")	// May be given in any order, or together
-            {
-                bool& saveFlag = (arg == "--save-png") ? commandLine.savePNG : (arg == "--save-svg") ? commandLine.saveSVG : commandLine.saveZip;
-
-                if (saveFlag)
-                {
-                    std::cerr << "ERROR: " << arg << " was given more than once.\n";
-                    return false;
-                }
-
-                saveFlag = true;
-                continue;
-            }
-
-            // Options from earlier versions: say what replaced them rather than just "unknown option".
-            if (arg == "-sdr" || arg == "-sdd")
-            {
-                std::cerr << "ERROR: " << arg << " is now -" << arg << " (two dashes).\n";
+                std::cerr << "ERROR: " << arg << " saves karyograms, so it needs -kh or -ko right before it, e.g. "
+                          << first << " " << commandLine.filename << " -kh " << arg << "\n";
                 return false;
             }
 
-            if (arg == "--karyogram")
+            bool& saveFlag = (arg == "--save-png") ? commandLine.savePNG : (arg == "--save-svg") ? commandLine.saveSVG : commandLine.saveZip;
+
+            if (saveFlag)
             {
-                std::cerr << "ERROR: --karyogram human|other is now -kh (human) or -ko (other).\n";
+                std::cerr << "ERROR: " << arg << " was given more than once.\n";
                 return false;
             }
 
-            if (arg == "-kh" || arg == "-ko")					// Karyograms: -k and the genome type always come together
-            {
-                if (commandLine.drawKaryogram)
-                {
-                    std::cerr << "ERROR: Give -kh or -ko only once.\n";
-                    return false;
-                }
+            saveFlag = true;
+        }
 
-                commandLine.drawKaryogram = true;
-                commandLine.genomeType = (arg == "-kh") ? "human" : "other";
-                continue;
-            }
-
-            if (arg == "-k" || arg == "-o" || arg == "-hk" || arg == "-ok")		// Near misses of -kh/-ko
-            {
-                std::cerr << "ERROR: Unknown command-line option: " << arg << "\n"
-                          << "Karyograms are drawn with -kh (human genome) or -ko (other genome), written as one option.\n";
-                return false;
-            }
+        // 4. Optional output directory, always the last argument
+        if (i < argc)
+        {
+            const std::string arg = argv[i];
 
             if (arg[0] == '-')
             {
-                std::cerr << "ERROR: Unknown command-line option: " << arg << "\n";
-                return false;
-            }
-
-            // Anything else is the output directory.
-            if (!commandLine.outputDirectory.empty())
-            {
-                std::cerr << "ERROR: More than one output directory given: " << commandLine.outputDirectory << " and " << arg << "\n";
+                reportMisplacedOption(arg, commandLine, false);
                 return false;
             }
 
             std::error_code error;
 
-            if (std::filesystem::is_regular_file(arg, error))		// Most likely an input file missing its --sdd/--sdr, not a folder to write into
+            if (std::filesystem::is_regular_file(arg, error))		// Most likely a second input file, not a folder to write into
             {
-                std::cerr << "ERROR: " << arg << " is a file, not an output directory.\n"
-                          << "If it is the input file, say what kind of file it is: --sdd " << arg << " or --sdr " << arg << "\n";
+                std::cerr << "ERROR: " << arg << " is a file, not an output directory.\n";
                 return false;
             }
 
             commandLine.outputDirectory = arg;
+            i++;
         }
 
-        if (!inputGiven)
+        if (i < argc)							// Anything after the output directory
         {
-            std::cerr << "ERROR: No input file. Use --sdd <SDD file> or --sdr <SDR file>.\n";
-            return false;
-        }
+            const std::string arg = argv[i];
 
-        if (!commandLine.drawKaryogram && (commandLine.savePNG || commandLine.saveSVG || commandLine.saveZip))
-        {
-            std::cerr << "ERROR: --save-png, --save-svg and --save-zip save karyograms and need -kh or -ko, e.g. -kh --save-png\n";
+            if (arg[0] == '-')
+            {
+                reportMisplacedOption(arg, commandLine, true);
+            }
+            else
+            {
+                std::cerr << "ERROR: Unexpected argument after the output directory " << commandLine.outputDirectory << ": " << arg << "\n"
+                          << "Give only one output directory, as the last argument.\n";
+            }
+
             return false;
         }
 
@@ -536,7 +583,7 @@ namespace
 
 
 
-int main(int argc, char* argv[]) 					// Command line: --sdd <file> or --sdr <file>, then optionally -kh (human) or -ko (other) to draw karyograms, an output directory, and --save-png/--save-svg/--save-zip. See printUsage().
+int main(int argc, char* argv[]) 					// Command line, in this order: --sdd <file> or --sdr <file>, optionally -kh (human) or -ko (other) to draw karyograms, optionally --save-png/--save-svg/--save-zip, optionally the output directory. See printUsage().
 {
 
     // ---------------------------------------
@@ -545,10 +592,10 @@ int main(int argc, char* argv[]) 					// Command line: --sdd <file> or --sdr <fi
 
     if(argc < 2)							// Must have at least the input type and file.
     {
-	std::cerr << "Usage: ./SDDparser --sdd <SDD file> [-kh|-ko] [<output directory>] [--save-png] [--save-svg] [--save-zip]\n"
-		   << "       ./SDDparser --sdr <SDR file> [-kh|-ko] [<output directory>] [--save-png] [--save-svg] [--save-zip]\n"
-		   << "       ./SDDparser --help\n"
-		   << "       ./SDDparser --version\n";
+	std::cerr << "Usage: ./karyoke --sdd <SDD file> [-kh|-ko [--save-png] [--save-svg] [--save-zip]] [<output directory>]\n"
+		   << "       ./karyoke --sdr <SDR file> [-kh|-ko [--save-png] [--save-svg] [--save-zip]] [<output directory>]\n"
+		   << "       ./karyoke --help\n"
+		   << "       ./karyoke --version\n";
 	return 1;
     }
 
@@ -556,7 +603,7 @@ int main(int argc, char* argv[]) 					// Command line: --sdd <file> or --sdr <fi
 
     if (!parseCommandLine(argc, argv, commandLine))
     {
-        std::cerr << "Run ./SDDparser --help for usage.\n";
+        std::cerr << "Run ./karyoke --help for usage.\n";
         return 1;
     }
 
@@ -568,11 +615,11 @@ int main(int argc, char* argv[]) 					// Command line: --sdd <file> or --sdr <fi
 
     if (commandLine.showVersion)
     {
-        std::cout << SDDPARSER_VERSION_TEXT << "\n";
+        std::cout << KARYOKE_VERSION_TEXT << "\n";
         return 0;
     }
 
-    std::cout << SDDPARSER_VERSION_TEXT << "\n";				// First line of every run, so logs show which version produced the outputs
+    std::cout << KARYOKE_VERSION_TEXT << "\n";				// First line of every run, so logs show which version produced the outputs
 
     const std::string filename = commandLine.filename;
     const bool drawKaryogram = commandLine.drawKaryogram;

@@ -1,4 +1,4 @@
-# SDDparser
+# KaryoKE - Karyograms for Karyotype Errors
 Writing a C++ toolkit capable of parsing the Standard for DNA Damage (SDD) file header and data fields,
 the Standard for DNA Repair (SDR) header and data fields, and drawing the cairo-based karyogram visualizations
 of the associated damages and mutations. 
@@ -28,8 +28,8 @@ A web browser is needed to view karyograms in the web viewer (no extra libraries
 ## Building
 
 ```
-make        # builds the SDDparser CLI executable (and, as part of that, the library)
-make lib    # builds only the static library, libSDDparser.a
+make        # builds the karyoke CLI executable (and, as part of that, the library)
+make lib    # builds only the static library, libKaryoKE.a
 make clean  # removes build artifacts
 ```
 
@@ -37,59 +37,64 @@ make clean  # removes build artifacts
 
 
 ## HOW TO USE AS A COMMAND-LINE EXECUTABLE PROGRAM:
-1. To compile the SDDparser program, navigate to the directory where the Makefile is stored: 'cd /path/to/SDDparserDirectory/'.
+1. To compile the KaryoKE program, navigate to the directory where the Makefile is stored: 'cd /path/to/KaryoKEdirectory/'.
 
 2. Ensure g++ is installed on your computer by checking "g++ --version". The terminal should return the version number and license.
 
 3. Ensure you have installed the libcairo2-dev library for plotting the associated Karyogram to the SDD file.
 
-4. Simply type 'make' into your terminal to compile the program 'SDDparser'. No warnings or errors should appear. 
+4. Simply type 'make' into your terminal to compile the program 'karyoke'. No warnings or errors should appear. 
 
-5. To run the SDDparser and generate a summary of either the SDD or SDR file, type in the command line 
+5. To run KaryoKE and generate a summary of either the SDD or SDR file, type in the command line 
 
 ```
-./SDDparser --sdd <SDD file> [-kh|-ko] [<output directory>] [--save-png] [--save-svg] [--save-zip]
-./SDDparser --sdr <SDR file> [-kh|-ko] [<output directory>] [--save-png] [--save-svg] [--save-zip]
-./SDDparser --help
-./SDDparser --version
+./karyoke --sdd <SDD file> [-kh|-ko [--save-png] [--save-svg] [--save-zip]] [<output directory>]
+./karyoke --sdr <SDR file> [-kh|-ko [--save-png] [--save-svg] [--save-zip]] [<output directory>]
+./karyoke --help
+./karyoke --version
 ```
 
-| Option | Meaning |
-|---|---|
-| `--sdd <file>` | The input is an SDD file (DNA damage). |
-| `--sdr <file>` | The input is an SDR file (mutations). Exactly one of `--sdd`/`--sdr` is required. |
-| `-kh` | Draw one karyogram per cell, human genome: realistic, chromosome-specific centromere positions. |
-| `-ko` | Draw one karyogram per cell, other genome: generic centromere positions. |
-| `<output directory>` | Optional folder for all outputs (summary file, karyograms, web viewer), created if it does not exist. Default: the folder of the input file. It is the only argument without a dash; it must not be an existing file. |
-| `--save-png`, `--save-svg`, `--save-zip` | Save the karyograms as files instead of opening the web viewer (see below). Need `-kh` or `-ko`. |
-| `-h`, `--help` | Show the usage help. |
-| `-v`, `--version` | Show the SDDparser version (currently `SDDparser v1.0`). |
+The order of the arguments matters, and is always:
 
-Options can be given in any order. `-kh` and `-ko` are always written as one option: `-k -h` and `-k -o` are not accepted, so `-h` always means help.
+| # | Argument | Meaning |
+|---|---|---|
+| 1 | `--sdd <file>` or `--sdr <file>` | Required, always first. The input is an SDD file (DNA damage) or an SDR file (mutations). |
+| 2 | `-kh` or `-ko` | Optional. Draw one karyogram per cell: `-kh` human genome (realistic, chromosome-specific centromere positions), `-ko` other genome (generic centromere positions). |
+| 3 | `--save-png`, `--save-svg`, `--save-zip` | Optional, only after `-kh`/`-ko`. Save the karyograms as files instead of opening the web viewer (see below). They can be combined, in any order among themselves. |
+| 4 | `<output directory>` | Optional, always the last argument. Folder for all outputs (summary file, karyograms, web viewer), created if it does not exist. Default: the folder of the input file. It must not be an existing file. |
+
+`-h`/`--help` (show the usage help) and `-v`/`--version` (show the KaryoKE version, currently `KaryoKE v1.0`) are used on their own,
+e.g. `./karyoke --version`.
+
+`-kh` and `-ko` are always written as one option: `-k -h` and `-k -o` are not accepted, so `-h` always means help.
+Arguments in the wrong order stop with an `ERROR:` line saying where they go, for example `--save-png must come before the output directory`.
+Mistyped or old-style options (`-sdr`, `--karyogram human`, `-k`, a file name without `--sdd`/`--sdr`) stop with an `ERROR:` line saying what to type instead.
 
 Examples:
 
 ```
-./SDDparser --sdd exampleSDD.txt
-./SDDparser --sdd exampleSDD.txt -kh
-./SDDparser --sdr exampleSDR.txt
-./SDDparser --sdr exampleSDR.txt -kh
-./SDDparser --sdr exampleSDR.txt -ko
-./SDDparser --sdr exampleSDR.txt -kh --save-png
-./SDDparser --sdr exampleSDR.txt -kh --save-svg
-./SDDparser --sdr exampleSDR.txt -kh --save-png --save-svg
-./SDDparser --sdr exampleSDR.txt -kh --save-zip
-./SDDparser --sdr exampleSDR.txt -kh --save-zip --save-svg
-./SDDparser --sdr exampleSDR.txt -kh results/ --save-png
-./SDDparser --sdd exampleSDD.txt results/
+./karyoke --sdd exampleSDD.txt
+./karyoke --sdd exampleSDD.txt -kh
+./karyoke --sdr exampleSDR.txt
+./karyoke --sdr exampleSDR.txt -kh
+./karyoke --sdr exampleSDR.txt -ko
+./karyoke --sdr exampleSDR.txt -kh --save-png
+./karyoke --sdr exampleSDR.txt -kh --save-svg
+./karyoke --sdr exampleSDR.txt -kh --save-png --save-svg
+./karyoke --sdr exampleSDR.txt -kh --save-zip
+./karyoke --sdr exampleSDR.txt -kh --save-zip --save-svg
+./karyoke --sdr exampleSDR.txt -kh --save-png results/
+./karyoke --sdr exampleSDR.txt -ko results/
+./karyoke --sdd exampleSDD.txt results/
 ```
 
 Each run writes a `<input>_summary.txt` file to the output directory (the input file's folder unless another is given). The summary
-file starts with the SDDparser version that produced it (e.g. "Generated by SDDparser v1.0"). If `-kh` or `-ko` is passed, one karyogram is drawn per exposure/cell found in the file:
+file starts with the KaryoKE version that produced it (e.g. "Generated by KaryoKE v1.0"). If `-kh` or `-ko` is passed, one karyogram is drawn per exposure/cell found in the file:
 
 **By default**, all karyograms are placed in a single self-contained HTML file, `<input>_karyograms_<human|other>.html`, written to a
   `temp` folder in the output directory (created if it does not exist yet) and opened in your default web browser. The full path of the HTML
-  file is always printed, so it can be reopened later. In the viewer you can:
+  file is always printed, so it can be reopened later. Rerunning on the same input replaces the file. The top of the viewer shows the
+  KaryoKE version on the left and the input file name in the middle. In the viewer you can:
   - switch between cells with Previous/Next or the cell list,
   - zoom with the mouse wheel, trackpad pinch, double-click, the −/+/Fit/100% buttons, or the keys `+`, `-`, `0` (fit) and `1` (100%),
     and drag to pan. Karyograms are shown as vector images (SVG), so they stay sharp at any zoom level,
@@ -112,12 +117,12 @@ file starts with the SDDparser version that produced it (e.g. "Generated by SDDp
 **On machines without a screen** (over SSH, on HPC clusters, or in containers), no browser is opened. The HTML file is still written to the `temp`
   folder in the output directory, so you can copy it to your own computer (e.g. with `scp`) and open it there, or rerun with `--save-png`, `--save-svg` or `--save-zip`.
 
-**Terminal output.** While running, SDDparser prints its version, which file it is processing, a progress line per cell (updated in place in an
+**Terminal output.** While running, KaryoKE prints its version, which file it is processing, a progress line per cell (updated in place in an
   interactive terminal, one line per cell when the output is redirected to a file), where the summary and karyograms were written, and a
   final status line. For example:
 
 ```
-SDDparser v1.0
+KaryoKE v1.0
 SDR file processing: exampleSDR.txt...
 Processing cell X/'TOTAL' (Cell ID Y)...
 Summary written to: "exampleSDR_summary.txt"
@@ -127,8 +132,10 @@ All 'TOTAL' cells processed successfully.
 ```
 
   Without `-kh`/`-ko`, a single "Summarizing N cells..." line is shown instead of the per-cell progress. Cells with no SDR data records
-  have nothing to draw; they are listed in the "absent SDR data" line and are not treated as errors. If any errors occur, the run ends with "Finished with errors, 
-  see the messages above." and exit code 1 instead of the "All N cells processed successfully." line (exit code 0).
+  have nothing to draw; they are listed in the "absent SDR data" line and are not treated as errors. Lines starting with `ERROR:` are
+  reserved for problems that prevent a file from being parsed, summarized or drawn correctly (an unreadable input file, a malformed header,
+  a karyogram that could not be drawn or written). If any occur, the run ends with "Finished with errors, see the messages above." and exit
+  code 1 instead of the "All N cells processed successfully." line (exit code 0).
 
 
 6. If you decide to plot the Karyogram of the SDD/SDR file illustrating the locations of the single- and double-strand breaks on each of the chromosomes, 
@@ -185,17 +192,18 @@ The data block is summarized under the subsection 'Chromosome Damages', where th
 
 1. All chromosomes passed by the user are plotted with distinct colors for visual clarity.
 2. Centromeric positions using the `-kh` (human) option are realistic and adjusted based on the chromosome being drawn, whereas 
-non-human genomes using the -ko (other) option will be drawn using the generic centromere locations at approximately 50% of the chromosomes length. 
+non-human genomes will be drawn using the generic centromere locations at approximately 50% of the chromosomes length. 
 3. Double-strand breaks are denoted using black lines spanning slightly more than the width of the chromosome to distinguish from single-strand breaks.
 4. Single-strand breaks are denoted using white lines on the chromosomes and the line lengths are scaled based on the number of single-strand breaks 
 within a given damage site (i.e. a given SDD data row) (usually between 0-5 SSBs). 
 5. Summary at the top to describe the dose or fluence in the SDD file, the cell cycle phase, and the number of single- and double-strand breaks.
-6. Legend at the bottom to describe what each symbol signifies in the karyogram.
+6. Legend at the bottom to describe what each symbol signifies in the karyogram. It always starts a fixed distance below the labels of the
+   lowest chromosome row, so labels never overlap it.
 7. Can draw damages on either of the two sister chromatids in post-replicated chromosomes. 
 8. Chromosome homologs are drawn with dashed outline to distinguish the two.
 
 ### WHAT IS SUMMARIZED IN THE SDR FILE SUMMARY:
-1. SDR version, author, associated SDD file that produced the SDR file from the MEDRAS-MC output, and cell cycle phase.
+1. SDR version, author, associated SDD file that produced the SDR file from the MEDRAS-MC output.
 2. Number of chromosomes listed and their respective sizes in mega base pairs.
 3. Per cell summary of the cell subheader (number of double-strand breaks and misrepairs).
 4. Number of mutations per each type for each cell.
@@ -243,7 +251,7 @@ largest original chromosome.
 and deletion-insertions, chromoplexy, chromothripsis and complex genomic rearrangements (as well as dicentrics and chromosome rings) 
 7. For chromoplexy and ecDNA leading to acentric strands composed of multiple foreign DNA fragments, they receive their own slots
 after the sex chromosomes. They are labeled such that the original chromosomes that compose the acentric strand are labeled and a '*' is 
-present to indicate it is a derivative, not an original chromosome strand (see exampleSDR_dicentrics_rings_cell0_karyogram_human.png).
+present to indicate it is a derivative, not an original chromosome strand. (see exampleSDR_dicentrics_rings_cell0_karyogram_human.png, produced with `--save-png`).
 Note: the multi-foreign-fragment ecDNA are depicted pie-chart style, to represent 'how much' of each original chromosome is present in the new ecDNA fragment. 
 
 <picture align = "center">
@@ -253,38 +261,39 @@ Note: the multi-foreign-fragment ecDNA are depicted pie-chart style, to represen
 
 
 ## FURTHER WORK:
-1. Representing and summarizing short indel mutations in SDR file format and reporting how many of each per chromosome (perhaps drawable in future).
+1. Modify parser to account for newest version of SDR file v2.2 which includes a cell cycle phase master header.
+2. Representing and summarizing short indel mutations in SDR file format and reporting how many of each per chromosome (perhaps drawable in future).
 ... and much more.
 
 
 ---
 
-## USING SDDparser AS A LIBRARY
+## USING KaryoKE AS A LIBRARY
 
-Everything the library exposes lives in the `sddparser` namespace. Include the single umbrella header to get all three public classes (and the web viewer
+Everything the library exposes lives in the `karyoke` namespace. Include the single umbrella header to get all three public classes (and the web viewer
 functions) at once:
 
 ```cpp
-#include <SDDparserLibrary.h>
+#include <KaryoKElibrary.h>
 ```
 
-Link against `libSDDparser.a` and `cairo` (my_program is the name of the file that will include and run the SDDparser library - libSDDparser.a):
+Link against `libKaryoKE.a` and `cairo` (my_program is the name of the file that will include and run the KaryoKE library - libKaryoKE.a):
 
 ```
-g++ -std=c++17 -I/path/to/SDDparser/include -o my_program my_program.cpp \
-    /path/to/SDDparser/libSDDparser.a -lcairo
+g++ -std=c++17 -I/path/to/KaryoKE/include -o my_program my_program.cpp \
+    /path/to/KaryoKE/libKaryoKE.a -lcairo
 ```
 
-### Parsing an SDD file — `sddparser::SDDparser`
+### Parsing an SDD file — `karyoke::SDDparser`
 
 ```cpp
-#include <SDDparserLibrary.h>
+#include <KaryoKElibrary.h>
 #include <fstream>
 #include <iostream>
 
 int main()
 {
-    sddparser::SDDparser parser;
+    karyoke::SDDparser parser;
 
     if (!parser.load("exampleSDD.txt"))
     {
@@ -292,8 +301,8 @@ int main()
         return 1;
     }
 
-    const sddparser::Header& header = parser.getHeader();
-    const std::vector<sddparser::Exposure>& exposures = parser.getExposures();
+    const karyoke::Header& header = parser.getHeader();
+    const std::vector<karyoke::Exposure>& exposures = parser.getExposures();
 
     std::cout << "SDD version: " << header.sdd_version << "\n";
     std::cout << "Exposures found: " << exposures.size() << "\n";
@@ -316,15 +325,15 @@ int main()
 | `void printSummary(std::ostream& out) const` | Writes a human-readable summary of the header and every exposure's damage to any output stream. |
 | `std::map<int, ChromosomeDamageSummary> summarizeChromosomeDamage(const Exposure& exposure) const` | Base damages, single-strand breaks and double-strand breaks per chromosome number for one exposure (the same totals as the summary file). |
 
-### Parsing an SDR file — `sddparser::SDRparser`
+### Parsing an SDR file — `karyoke::SDRparser`
 
 ```cpp
-#include <SDDparserLibrary.h>
+#include <KaryoKElibrary.h>
 #include <iostream>
 
 int main()
 {
-    sddparser::SDRparser parser;
+    karyoke::SDRparser parser;
 
     if (!parser.parseFile("exampleSDR.txt"))
     {
@@ -332,8 +341,8 @@ int main()
         return 1;
     }
 
-    const sddparser::SDRmasterHeader& masterHeader = parser.getMasterHeader();
-    const std::vector<sddparser::SDRsubHeader>& subHeaders = parser.getSubHeaders();
+    const karyoke::SDRmasterHeader& masterHeader = parser.getMasterHeader();
+    const std::vector<karyoke::SDRsubHeader>& subHeaders = parser.getSubHeaders();
 
     std::cout << "SDR version: " << masterHeader.sdrVersion << "\n";
     std::cout << "Cells parsed: " << subHeaders.size() << "\n";
@@ -354,22 +363,22 @@ int main()
 | `const std::vector<SDRsubHeader>& getSubHeaders() const` | One `SDRsubHeader` per cell, each holding that cell's data records. |
 | `bool writeSummary(const std::string& outputFilename) const` | Writes a text summary of every detected mutation type per cell, plus the per-chromosome breakdown, to the given file. |
 
-### Drawing a karyogram — `sddparser::Karyogram`
+### Drawing a karyogram — `karyoke::Karyogram`
 
 One `Karyogram` instance can draw both SDD-style damage karyograms and SDR-style rearrangement karyograms.
 
 **From SDD data:**
 
 ```cpp
-sddparser::Karyogram karyogram;
-sddparser::SDDparser parser;
+karyoke::Karyogram karyogram;
+karyoke::SDDparser parser;
 parser.load("exampleSDD.txt");
 
-const sddparser::Header& header = parser.getHeader();
+const karyoke::Header& header = parser.getHeader();
 
-for (const sddparser::Exposure& exposure : parser.getExposures())
+for (const karyoke::Exposure& exposure : parser.getExposures())
 {
-    std::vector<sddparser::Exposure> singleExposure = {exposure};
+    std::vector<karyoke::Exposure> singleExposure = {exposure};
 
     karyogram.generateSDDkaryogram(
         header.chromosome_sizes,
@@ -386,11 +395,11 @@ for (const sddparser::Exposure& exposure : parser.getExposures())
 **From SDR data:**
 
 ```cpp
-sddparser::Karyogram karyogram;
-sddparser::SDRparser parser;
+karyoke::Karyogram karyogram;
+karyoke::SDRparser parser;
 parser.parseFile("exampleSDR.txt");
 
-for (const sddparser::SDRsubHeader& subHeader : parser.getSubHeaders())
+for (const karyoke::SDRsubHeader& subHeader : parser.getSubHeaders())
 {
     karyogram.generateSDRkaryogram(
         parser.getMasterHeader(),
@@ -401,12 +410,12 @@ for (const sddparser::SDRsubHeader& subHeader : parser.getSubHeaders())
 }
 ```
 
-**Choosing PNG or SVG:** every drawing function takes an optional last argument, `sddparser::KaryogramFormat::PNG` (the default)
-or `sddparser::KaryogramFormat::SVG`. SVG is a vector image that stays sharp at any zoom level.
+**Choosing PNG or SVG:** every drawing function takes an optional last argument, `karyoke::KaryogramFormat::PNG` (the default)
+or `karyoke::KaryogramFormat::SVG`. SVG is a vector image that stays sharp at any zoom level.
 
 ```cpp
 karyogram.generateSDRkaryogram(parser.getMasterHeader(), subHeader, /*humanGenome=*/true,
-                               "cell0_karyogram.svg", sddparser::KaryogramFormat::SVG);
+                               "cell0_karyogram.svg", karyoke::KaryogramFormat::SVG);
 ```
 
 **Keeping the image in memory instead of writing a file:** both functions have an overload that takes a `std::vector<unsigned char>&`
@@ -415,7 +424,7 @@ in place of the output filename and fills it with the encoded image (PNG by defa
 ```cpp
 std::vector<unsigned char> pngBytes, svgBytes;
 karyogram.generateSDRkaryogram(parser.getMasterHeader(), subHeader, /*humanGenome=*/true, pngBytes);
-karyogram.generateSDRkaryogram(parser.getMasterHeader(), subHeader, /*humanGenome=*/true, svgBytes, sddparser::KaryogramFormat::SVG);
+karyogram.generateSDRkaryogram(parser.getMasterHeader(), subHeader, /*humanGenome=*/true, svgBytes, karyoke::KaryogramFormat::SVG);
 ```
 
 
@@ -430,35 +439,35 @@ karyogram.generateSDRkaryogram(parser.getMasterHeader(), subHeader, /*humanGenom
 | `const std::vector<KaryogramLabelRegion>& getLabelRegions() const` | Where each chromosome label was drawn in the last karyogram (box in image pixels, plus the chromosome/strand IDs of homolog 1 and 2). Used for the viewer's clickable labels. |
 
 `humanGenome = true` draws real human centromere positions; `false` uses a generic centromere at the midpoint of each chromosome.
-`format` is `sddparser::KaryogramFormat::PNG` (default) or `sddparser::KaryogramFormat::SVG`.
+`format` is `karyoke::KaryogramFormat::PNG` (default) or `karyoke::KaryogramFormat::SVG`.
 
 
-### Library version — `SDDparserVersion.h`
+### Library version — `KaryoKEversion.h`
 
-`SDDPARSER_VERSION` (a macro, `"1.0"`) and `sddparser::SDDPARSER_VERSION_TEXT` (`"SDDparser v1.0"`) hold the version. It is included by
-`SDDparserLibrary.h`, and is the one place to change when releasing a new version: the CLI, the summary files and the web viewer all read it.
+`KARYOKE_VERSION` (a macro, `"1.0"`) and `karyoke::KARYOKE_VERSION_TEXT` (`"KaryoKE v1.0"`) hold the version. It is included by
+`KaryoKElibrary.h`, and is the one place to change when releasing a new version: the CLI, the summary files and the web viewer all read it.
 
 
 ### Showing karyograms in the web viewer — `KaryogramViewer.h`
 
-Collect in-memory karyograms into `sddparser::KaryogramImage` entries, write them into one self-contained HTML file, and open it.
+Collect in-memory karyograms into `karyoke::KaryogramImage` entries, write them into one self-contained HTML file, and open it.
 The viewer shows `svgBytes` (sharp when zoomed) and offers both formats for download; either one can be left empty, and the viewer
 then only uses the format it has:
 
 ```cpp
-sddparser::Karyogram karyogram;
-sddparser::SDRparser parser;
+karyoke::Karyogram karyogram;
+karyoke::SDRparser parser;
 parser.parseFile("exampleSDR.txt");
 
-std::vector<sddparser::KaryogramImage> images;
+std::vector<karyoke::KaryogramImage> images;
 
-for (const sddparser::SDRsubHeader& subHeader : parser.getSubHeaders())
+for (const karyoke::SDRsubHeader& subHeader : parser.getSubHeaders())
 {
-    sddparser::KaryogramImage image;
+    karyoke::KaryogramImage image;
     image.label = "Cell " + std::to_string(subHeader.cellID);                        // Shown in the viewer's cell list
     image.filename = "cell" + std::to_string(subHeader.cellID) + "_karyogram.png";   // Name used by the viewer's downloads (.svg for SVG)
 
-    if (karyogram.generateSDRkaryogram(parser.getMasterHeader(), subHeader, /*humanGenome=*/true, image.svgBytes, sddparser::KaryogramFormat::SVG)
+    if (karyogram.generateSDRkaryogram(parser.getMasterHeader(), subHeader, /*humanGenome=*/true, image.svgBytes, karyoke::KaryogramFormat::SVG)
         && karyogram.generateSDRkaryogram(parser.getMasterHeader(), subHeader, /*humanGenome=*/true, image.pngBytes))
     {
         images.push_back(image);
@@ -466,12 +475,12 @@ for (const sddparser::SDRsubHeader& subHeader : parser.getSubHeaders())
 }
 
 // Optional: make the chromosome labels clickable. Inside the loop above, after drawing, add per-homolog mutation counts with
-// image.hotspots, built from karyogram.getLabelRegions() and sddparser::countMutationsPerOriginalStrand(subHeader, parser.getMasterHeader())
+// image.hotspots, built from karyogram.getLabelRegions() and karyoke::countMutationsPerOriginalStrand(subHeader, parser.getMasterHeader())
 // (see buildLabelHotspots in source/main.cpp). image.popupNote and image.popupEmptyText set the popup's footnote and "nothing found" text.
 
-if (sddparser::writeKaryogramViewer(images, "exampleSDR.txt", "exampleSDR_karyograms.html"))
+if (karyoke::writeKaryogramViewer(images, "exampleSDR.txt", "exampleSDR_karyograms.html"))
 {
-    sddparser::openInBrowser("exampleSDR_karyograms.html");
+    karyoke::openInBrowser("exampleSDR_karyograms.html");
 }
 ```
 

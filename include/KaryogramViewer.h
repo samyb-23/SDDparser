@@ -6,7 +6,7 @@
 #include <filesystem>
 #include <utility>
 
-namespace sddparser
+namespace karyoke
 {
 
 struct KaryogramPopupSection                    // One part of a chromosome's popup, e.g. "Homolog 1".
@@ -57,6 +57,6 @@ bool canOpenBrowser();
 // browser from WSL). Returns false if it could not, in which case the caller should tell the user where the file is.
 bool openInBrowser(const std::filesystem::path& htmlPath);
 
-} // namespace sddparser
+} // namespace karyoke
 
 #endif

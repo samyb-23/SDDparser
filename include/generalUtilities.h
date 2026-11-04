@@ -12,14 +12,14 @@
 
 
 
-namespace sddparser
+namespace karyoke
 {
 
 // -------------------------------------------------- //
 // ----------- GENERIC HELPER FUNCTIONS ------------- //
 // -------------------------------------------------- //
 
-// Trimming all white spaces in a line of an SDD file
+// Trimming all white spaces in a line of an SDD/SDR file
 inline std::string trim(const std::string& s)
 {
     size_t first = s.find_first_not_of(" \t\r\n");
@@ -34,7 +34,7 @@ inline std::string trim(const std::string& s)
     return s.substr(first,last-first+1);
 }
 
-// Splitting all SDD file lines by a delimiter of choice ',', ';', '/'.
+// Splitting all SDD/SDR file lines by a delimiter of choice ',', ';', '/'.
 inline std::vector<std::string> split(const std::string& line,char delimiter)
 {
     std::vector<std::string> tokens;
@@ -107,6 +107,6 @@ inline std::vector<int> parseIntList(const std::vector<std::string>& values)
     return output;
 }
 
-} // namespace sddparser
+} // namespace karyoke
 
 #endif

@@ -6,7 +6,7 @@
 #include <vector>
 #include <unordered_map>
 
-namespace sddparser
+namespace karyoke
 {
 
 // Use for checking if any optional header fields are absent, to not raise an error, but report as not measured.
@@ -172,6 +172,6 @@ struct DamageLocation		// Stores the chromosome position in base pairs where the
     int numSingleStrandBreaks;
 };
 
-} // namespace sddparser
+} // namespace karyoke
 
 #endif

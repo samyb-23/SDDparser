@@ -12,7 +12,7 @@
 
 
 
-namespace sddparser
+namespace karyoke
 {
 
 
@@ -360,9 +360,13 @@ void Karyogram::drawSDDlegend(                                     // Function t
 //      DRAW SDR SUMMARY BOX AND LEGEND IN KARYOGRAM            //
 // ------------------------------------------------------------ //
 
-void Karyogram::drawSDRsummary(cairo_t* cr, const SDRmasterHeader& masterHeader, const SDRsubHeader& subHeader)
+void Karyogram::drawSDRsummary(cairo_t* cr, const SDRmasterHeader& masterHeader, const SDRsubHeader& rawSubHeader)
 {
     const int numOriginalStrands = masterHeader.intactChromosomeSizes.empty() ? 0 : static_cast<int>(masterHeader.intactChromosomeSizes[0]);
+
+    // Indels (<= 50 bp) are counted on the cell as written; every other mutation type is detected with the indels taken out (see removeIndels).
+    std::vector<SDRindelEvent> indels;
+    const SDRsubHeader subHeader = removeIndels(rawSubHeader, numOriginalStrands, &indels);
 
     const std::vector<SDRdeletionEvent> deletions = detectDeletions(subHeader, numOriginalStrands, masterHeader);
     const std::vector<SDRinversionEvent> inversions = detectInversions(subHeader, numOriginalStrands, masterHeader);
@@ -435,6 +439,9 @@ void Karyogram::drawSDRsummary(cairo_t* cr, const SDRmasterHeader& masterHeader,
 
     cairo_move_to(cr, summaryX + 15.0, fifthRowY);
     cairo_show_text(cr, ("Complex Genomic Rearrangements: " + std::to_string(complexRearrangements)).c_str());
+
+    cairo_move_to(cr, summaryX + 615.0, fifthRowY);						// Third column: the CGR label is too wide to share its row's middle column.
+    cairo_show_text(cr, ("Indels (<= 50 bp): " + std::to_string(indels.size())).c_str());
 
 }
 
@@ -582,4 +589,4 @@ void Karyogram::drawSDRlegend(cairo_t* cr, double legendY)
 
 
 
-} // namespace sddparser
+} // namespace karyoke

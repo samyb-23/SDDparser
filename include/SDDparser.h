@@ -12,7 +12,7 @@
 
 #include "SDDtypes.h"
 
-namespace sddparser
+namespace karyoke
 {
 
 class SDDparser
@@ -49,6 +49,6 @@ private:
 
 };
 
-} // namespace sddparser
+} // namespace karyoke
 
 #endif
