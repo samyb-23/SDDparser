@@ -1,4 +1,4 @@
-# KaryoKE - Karyograms for Karyotype Errors
+# KaryoKE - **Karyo**grams for **K**aryotype **E**rrors
 Writing a C++ toolkit capable of parsing the Standard for DNA Damage (SDD) file header and data fields,
 the Standard for DNA Repair (SDR) header and data fields, and drawing the cairo-based karyogram visualizations
 of the associated damages and mutations. 
