@@ -444,7 +444,7 @@ karyogram.generateSDRkaryogram(parser.getMasterHeader(), subHeader, /*humanGenom
 
 ### Library version — `KaryoKEversion.h`
 
-`KARYOKE_VERSION` and `karyoke::KARYOKE_VERSION_TEXT hold the version. It is included by
+`KARYOKE_VERSION` and `karyoke::KARYOKE_VERSION_TEXT` hold the version. It is included by
 `KaryoKElibrary.h`, and is the one place to change when releasing a new version: the CLI, the summary files and the web viewer all read it.
 
 
