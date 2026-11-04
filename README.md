@@ -665,10 +665,12 @@ Example SDR file mutated data entries for each type, the exact same as exampleSD
 0; 104; 27/150/192.2/0; 1;
 
 
-- Indel examples:
+-- Indel examples:
 
--- Indel insertion of 3 bases (bases are randomly copied from anywhere along the genome)
+- Indel insertion of 3 bases (bases are randomly copied from anywhere along the genome)
+
 0; 105; 35/0/40.000000/1, 10/124.178923/124.178923/0, 7/98.102345/98.102345/0, 46/0.890012/0.890012/0, 35/40.000001/121.3/0; 1;
 
--- Indel deletion of 36 bases (same format as a long deletion, but <= 50 bases in length)
+- Indel deletion of 36 bases (same format as a long deletion, but <= 50 bases in length)
+
 0; 106; 37/0/50.000000/1, 37/50.000037/106.9/0; 1;
