@@ -3,6 +3,8 @@ Writing a C++ toolkit capable of parsing the Standard for DNA Damage (SDD) file 
 the Standard for DNA Repair (SDR) header and data fields, and drawing the cairo-based karyogram visualizations
 of the associated damages and mutations. 
 
+**KaryoKE v1.1 is compatible with SDD version 1.0 and SDR version 2.2.**
+
 This package is now capable of summarizing the SDD header fields and data fields into a single summary file. It can also optionally plot a 
 karyogram of the double-strand break and single-strand break locations onto the chromosomes the user passes in the SDD file header. 
 This package can also accommodate the SDR file format in the same way as the SDD file, by summarizing the mutations specified
