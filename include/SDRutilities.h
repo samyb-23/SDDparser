@@ -79,31 +79,40 @@ inline bool isRearrangementCandidate(int newStrandID, int numOriginalStrands)
 }
 
 
-// Absolute-difference threshold check, 0.000050 Mbp tolerance for long deletions, 0.000010 Mbp tolerance for balanced inversion/translocations.
-inline bool approxEqual(double a, double b, double tolerance)
-{
-
-    return std::fabs(a - b) <= tolerance;
-}
-
-
-
-
-// --------------------------------------------------------------------------- //
-// INDELS: small insertions and deletions of <= 50 bp
-// --------------------------------------------------------------------------- //
-
-// Indels are <= 50 bp; anything larger is a structural variation, scored by the other detectors.
-constexpr long long indelMaxBases = 50;
-
 // Signed distance from position a to position b in bases (in Mbp, 1 bp = 0.000001 Mbp), rounded to a whole base. Positions are base
 // coordinates: 50.000000 -> 50.000001 is the next base (touching, nothing missing), 50.000000 -> 50.000002 is a 1 bp gap. Rounding is what
-// makes the 50 bp boundary reliable: 50.000051 - 50.000000 is not exactly 0.000051 in floating point, so plain Mbp comparisons can land on
-// the wrong side of it.
+// makes size boundaries reliable: 50.000100 - 50.000000 is not exactly 0.000100 in floating point, so plain Mbp comparisons can land on
+// either side of it.
 inline long long basesBetween(double a, double b)
 {
     return std::llround((b - a) * 1.0e6);
 }
+
+
+// Threshold check used by every detector: a and b (positions in Mbp) are "the same" when they are at most `tolerance` apart, compared in whole
+// bases (see basesBetween()) so a distance sitting exactly on the tolerance always counts as within it. Every structural-variation detector
+// (deletion-type mutations, balanced inversions and translocations) uses svToleranceMbp below.
+inline bool approxEqual(double a, double b, double tolerance)
+{
+    return std::llabs(basesBetween(a, b)) <= std::llround(tolerance * 1.0e6);
+}
+
+
+// Structural variations are >= 100 bp; anything smaller is an indel (Youk et al. 2024, chosen by Samy 2026-11-05). Two positions up to 100 bases
+// apart (at most 99 bases missing between them, e.g. 50.000000 -> 50.000100) are therefore treated as touching by every structural-variation detector
+// and the drawing; 50.000000 -> 50.000101 (100 bases missing) is a structural-variation gap. A balanced inversion or translocation may likewise lose
+// up to 99 bases at its breakpoints and still count as balanced (Samy, 2026-11-05; it was 10 bp).
+constexpr double svToleranceMbp = 0.000100;
+
+
+
+
+// --------------------------------------------------------------------------- //
+// INDELS: small insertions and deletions of < 100 bp
+// --------------------------------------------------------------------------- //
+
+// Indels are < 100 bp (at most 99 bases); 100 bp and larger is a structural variation, scored by the other detectors.
+constexpr long long indelMaxBases = 99;
 
 // Number of bases in a piece, counting both end bases (a piece with start == end is one base).
 inline long long fragmentBases(const SDRfragment& fragment)
@@ -111,32 +120,27 @@ inline long long fragmentBases(const SDRfragment& fragment)
     return std::llabs(basesBetween(fragment.oldStartPosition, fragment.oldEndPosition)) + 1;
 }
 
-// A piece of <= 50 bp, e.g. one inserted base (start == end).
+// A piece of < 100 bp, e.g. one inserted base (start == end).
 inline bool isIndelSizedFragment(const SDRfragment& fragment)
 {
     return fragmentBases(fragment) <= indelMaxBases;
 }
 
-
-
-
-
-
 // Returns a copy of the cell with every indel taken out of its rearranged linear records, and lists the indels removed when indels is non-null.
 // Every structural-variation detector and the karyogram drawing work on this cleaned copy, so indels never reach them:
-//  - Small insertion: a run of <= 50 bp pieces (usually one-base pieces copied from random places in the genome) between two larger pieces, adding up to
-//    <= 50 bases, is dropped. Without this, the copied bases tied the receiving strand to every strand they were copied from (Miscellaneous on all of them,
+//  - Small insertion: a run of < 100 bp pieces (usually one-base pieces copied from random places in the genome) between two larger pieces, adding up to
+//    < 100 bases, is dropped. Without this, the copied bases tied the receiving strand to every strand they were copied from (Miscellaneous on all of them,
 //    or chromoplexy when two of those strands also had a translocation) and added to the chromothripsis fragment count.
 //  - Small deletion: two consecutive pieces of the same strand and orientation, with 1-50 bases missing between them (or none when bases were inserted there),
-//    e.g. 1/0/50.000000/0, 1/50.000005/263.2/1 is 4 bases deleted (50.000001-50.000004); 1/0/50.000000/0, 1/50.000051/263.2/1 is 50 (the largest indel),
+//    e.g. 1/0/50.000000/0, 1/50.000005/263.2/1 is 4 bases deleted (50.000001-50.000004); 1/0/50.000000/0, 1/50.000100/263.2/1 is 99 (the largest indel),
 //    are joined back into one piece, so the record reads as if the indel never happened (often a plain whole copy of the chromosome).
-// Gaps over 50 bp, pieces over 50 bp, and pieces at either end of a record are left alone. Circular records and the baseline records (newStrandID <=
+// Gaps of 100 bp or more, pieces of 100 bp or more, and pieces at either end of a record are left alone. Circular records and the baseline records (newStrandID <=
 // numOriginalStrands) are not changed. A site with both a deletion and an insertion is ONE indel.
 //  - Excised partner: as for long deletions, the deleted bases may be listed as their own record, or not at all. A single-piece record of the same strand
 //    covering the deleted bases (each end within one base of the gap's, so 1/50.000001/50.000004/0 and 1/50.000000/50.000005/0 both match the gap above) is
 //    part of the indel and is taken out too, so it is neither scored nor drawn; each such record is used for one indel only. Without this the leftover piece
 //    was a change no other type explained, so it counted as a complex genomic rearrangement. The partner may be linear or circular and listed in either
-//    orientation (Samy, 2026-11-03): an ecDNA of <= 50 bp cut from an indel gap is scored as the indel deletion, not as ecDNA, and is not drawn, and so is a
+//    orientation (Samy, 2026-11-03): an ecDNA of < 100 bp cut from an indel gap is scored as the indel deletion, not as ecDNA, and is not drawn, and so is a
 //    reversed linear piece (unlike a long deletion, whose reversed excised piece counts as foreign material).
 inline SDRsubHeader removeIndels(const SDRsubHeader& subHeader, int numOriginalStrands, std::vector<SDRindelEvent>* indels = nullptr)
 {
@@ -260,16 +264,8 @@ inline SDRsubHeader removeIndels(const SDRsubHeader& subHeader, int numOriginalS
     return cleaned;
 }
 
-
-
-
-
-
-
-
-
 // --------------------------------------------------------------------------- //
-// Detects INDELS (<= 50 bp insertions/deletions) within a single cell.
+// Detects INDELS (< 100 bp insertions/deletions) within a single cell.
 // --------------------------------------------------------------------------- //
 
 // One event per site (see removeIndels() for the shapes). Indels are never part of a composite mutation, so there is no hierarchy: they are counted
@@ -307,7 +303,7 @@ inline std::map<int, int> findDicentricAcentricHomeOverrides(const SDRsubHeader&
     std::set<int> claimedExcisedRecords;				// newStrandIDs of single-fragment deletion records already used to fill a gap for some earlier pair, prevents the same deletion being reused by a different pair.
 
     const std::vector<SDRdataRecord>& records = subHeader.dataRecords;
-    const double tolerance = 0.000050;					// In Mbp, amount of discrepancy allowed between fragment ends and gap positions
+    const double tolerance = svToleranceMbp;					// Fewer than 100 bases missing = touching (see svToleranceMbp)
 
     // Given pooled fragments for ONE strand (from a dicentric+acentric pair), checks whether they (plus zero or more ADDITIONAL 
     // single-fragment excised records for that strand) exactly span its full declared length. This is what lets a deletion coexist
@@ -708,7 +704,7 @@ inline std::vector<SDRchromoplexyAcentricPlacement> findChromoplexyAcentricRecom
 {
     std::vector<SDRchromoplexyAcentricPlacement> placements;
     const std::vector<SDRdataRecord>& records = subHeader.dataRecords;
-    const double tolerance = 0.000050;
+    const double tolerance = svToleranceMbp;					// Fewer than 100 bases missing = touching (see svToleranceMbp)
 
     // Checks that fragment1 and fragment2 together exactly tile strandID's whole declared length with no gap and no overlap, i.e. that strandID
     // really has been fully consumed by exactly these two pieces.
@@ -966,10 +962,6 @@ inline std::vector<SDRdeletionTranslocationEvent> detectDeletionTranslocations(c
 inline std::vector<SDRtranslocationEvent> detectTranslocations(const SDRsubHeader& subHeader, int numOriginalStrands, const SDRmasterHeader& masterHeader, bool applyHierarchy = true);
 inline std::vector<SDRdeletionInsertionEvent> detectDeletionInsertions(const SDRsubHeader& subHeader, int numOriginalStrands, bool applyHierarchy = true);
 
-
-
-
-
 // A fragment with its positions normalized so low <= high, remembering whether it was reversed (start > end).
 struct SDRnormalizedFragment
 {
@@ -977,10 +969,6 @@ struct SDRnormalizedFragment
     double high;
     bool reversed;
 };
-
-
-
-
 
 // A gap between two neighbouring fragments of one old strand. leftIndex/rightIndex index the SORTED normalized fragments bordering the gap; -1 marks a terminal gap with no neighbour on that side.
 struct SDRflankGap
@@ -990,12 +978,6 @@ struct SDRflankGap
     int leftIndex;
     int rightIndex;
 };
-
-
-
-
-
-
 
 // Normalizes + sorts the fragments of ONE old strand and finds every gap (leading/internal/trailing). Leading/trailing gaps are only searched when fullSizeMbp > 0.
 // Returns false if two fragments overlap by more than tolerance (invalid shape).
@@ -1056,20 +1038,11 @@ inline bool analyzeFlankingFragments(const std::vector<SDRfragment>& fragments, 
     return true;
 }
 
-
-
-
-
-
 // True if the fragment on either side of the gap is reversed (a terminal gap only has one neighbour).
 inline bool gapTouchesReversedFragment(const std::vector<SDRnormalizedFragment>& sorted, const SDRflankGap& gap)
 {
     return (gap.leftIndex >= 0 && sorted[gap.leftIndex].reversed) || (gap.rightIndex >= 0 && sorted[gap.rightIndex].reversed);
 }
-
-
-
-
 
 // What (if anything) the material missing from a gap turned into elsewhere in the cell.
 enum class SDRgapPartner
@@ -1079,11 +1052,6 @@ enum class SDRgapPartner
     Circular,			// Reappears in a circular record -> ecDNA formation
     Foreign			// Reappears inside a linear multi-fragment record -> insertion / translocation / chromoplexy signature
 };
-
-
-
-
-
 
 // When a gap's material broke into SEVERAL circular pieces (e.g. a centric ring plus an acentric ecDNA cut from the same region),
 // returns the pieces' [low, high] ranges in order, provided they tile the gap exactly (contiguous within tolerance, nothing left over).
@@ -1132,12 +1100,6 @@ inline std::vector<std::pair<double, double>> circularPiecesTilingGap(const SDRs
 
     return approxEqual(reached, gapEnd, tolerance) ? pieces : std::vector<std::pair<double, double>>{};
 }
-
-
-
-
-
-
 
 // Looks through every rearranged record (except ignoreNewStrandIDs) for a fragment of oldStrandID matching [gapStart, gapEnd] within tolerance.
 // Priority: Circular > Foreign > LinearExcised > None. excisedStrandID is set only for LinearExcised (else -1).
@@ -1213,11 +1175,6 @@ inline SDRgapPartner classifyGapPartner(const SDRsubHeader& subHeader, int numOr
     return SDRgapPartner::None;
 }
 
-
-
-
-
-
 // For every old strand: the linear, rearranged, PURE (all fragments from that strand), 2+ fragment records ("flanking/remaining" records).
 inline std::map<int, std::vector<const SDRdataRecord*>> collectFlankingRecords(const SDRsubHeader& subHeader, int numOriginalStrands)
 {
@@ -1276,22 +1233,12 @@ inline std::map<int, std::vector<const SDRdataRecord*>> collectFlankingRecords(c
     return result;
 }
 
-
-
-
-
-
 // Chromosome's declared full size in Mbp (0 if unknown); intactChromosomeSizes index == oldStrandID.
 inline double fullSizeForStrand(const SDRmasterHeader& masterHeader, int oldStrandID)
 {
     const std::size_t index = static_cast<std::size_t>(oldStrandID);
     return (index < masterHeader.intactChromosomeSizes.size()) ? masterHeader.intactChromosomeSizes[index] : 0.0;
 }
-
-
-
-
-
 
 // Strands claimed by the complex genomic rearrangements that silence everything simpler: chromothripsis (10+ fragments in a 1-2 strand cluster), complex genomic
 // rearrangements (4+ pieces of one chromosome out of order, or shattered exchanged material) and chromoplexy (3+ strand cluster).
@@ -1320,14 +1267,6 @@ inline std::set<int> collectHigherOrderStrands(const SDRsubHeader& subHeader, in
 }
 
 
-
-
-
-
-
-
-
-
 // --------------------------------------------------------------------------- //
 // Detects LONG DELETION events within a single cell.
 // --------------------------------------------------------------------------- //
@@ -1337,7 +1276,7 @@ inline std::set<int> collectHigherOrderStrands(const SDRsubHeader& subHeader, in
 // Function also handles terminal chromosome deletions at the beginning or end of chromosomes, so the deleted segment will lack two flanking fragments.
 inline std::vector<SDRdeletionEvent> detectDeletions(const SDRsubHeader& subHeader, int numOriginalStrands, const SDRmasterHeader& masterHeader, bool applyHierarchy = true)
 {
-    const double delTolerance = 0.000050;						// 50 bp
+    const double delTolerance = svToleranceMbp;					// Fewer than 100 bases missing = touching (see svToleranceMbp)
 
     std::vector<SDRdeletionEvent> deletions;
 
@@ -1527,7 +1466,7 @@ inline bool isReversedFragment(const SDRfragment& fragment)
 // or the record's own fragments when it is not listed upside down, so the detectors score both listings the same way.
 inline std::vector<SDRfragment> fragmentsInReadingOrder(const SDRdataRecord& record, const SDRmasterHeader& masterHeader)
 {
-    const double tolerance = 0.000050;					// 50 bp
+    const double tolerance = svToleranceMbp;					// Fewer than 100 bases missing = touching (see svToleranceMbp)
     const std::vector<SDRfragment>& fragments = record.fragments;
 
     if (!record.linear || fragments.size() != 3 || fragments[0].oldStrandID != fragments[1].oldStrandID || fragments[1].oldStrandID != fragments[2].oldStrandID)
@@ -1556,16 +1495,6 @@ inline std::vector<SDRfragment> fragmentsInReadingOrder(const SDRdataRecord& rec
 }
 
 
-
-
-
-
-
-
-
-
-
-
 // ---------------------------------------------------------------------------- //
 // Detects BALANCED INVERSIONS within a single cell.
 // ---------------------------------------------------------------------------- //
@@ -1574,7 +1503,7 @@ inline std::vector<SDRfragment> fragmentsInReadingOrder(const SDRdataRecord& rec
 // intact region with no gaps (balanced) and can have more than one reverse fragment.
 inline std::vector<SDRinversionEvent> detectInversions(const SDRsubHeader& subHeader, int numOriginalStrands, const SDRmasterHeader& masterHeader, bool applyHierarchy = true)
 {
-    const double balInvTolerance = 0.00001;					// ~10 bp
+    const double balInvTolerance = svToleranceMbp;				// Up to 99 bases lost at the breakpoints is still balanced
 
     std::vector<SDRinversionEvent> inversions;
 
@@ -1736,7 +1665,7 @@ inline bool getTranslocationCandidateFragments(const SDRdataRecord& record, int 
 // are the two pieces resulting from a single break in that strand. If so, populates breakpoint with the position of that break.
 inline bool fragmentsShareBreakpoint(const SDRfragment& fragment1, const SDRfragment& fragment2, double& breakpoint)
 {
-    double balTransTolerance = 0.00001; 						// Balanced translocation mutations can have a loss of up to <= 10 bases = 10^-5 Mbp.
+    double balTransTolerance = svToleranceMbp; 					// Balanced translocations can lose up to 99 bases at the breakpoint (see svToleranceMbp)
 
     if (fragment1.oldStrandID != fragment2.oldStrandID)					// Both fragments must reference the same original strand. Checks whether they're the two pieces of a single break in that strand.
     {
@@ -1789,7 +1718,7 @@ inline std::vector<SDRtranslocationEvent> detectTranslocations(const SDRsubHeade
 
     const std::vector<SDRdataRecord>& records = subHeader.dataRecords;			// Records vector to store the SDR data records/entries
 
-    const double balTraTolerance = 0.00001;						// Tolerance of base position mismatch of approximately 10 bp
+    const double balTraTolerance = svToleranceMbp;					// Up to 99 bases lost at a breakpoint is still balanced (see svToleranceMbp)
 
 
     // Sub function to check if the strand being investigated is valid (linear for BalTrans, and a mutation record). Need this since we are
@@ -2166,7 +2095,7 @@ inline std::vector<SDRecDNAevent> detectECDNA(const SDRsubHeader& subHeader, int
             continue;
         }
 
-	const double ecDNAtolerance = 0.000050;					// tolerance in Mbp difference between contiguous segments <= 50 bp
+	const double ecDNAtolerance = svToleranceMbp;					// Fewer than 100 bases missing = touching (see svToleranceMbp)
 
 	// Gaps (leading, internal and trailing) from NORMALIZED fragments, so an inverted fragment next to the gap doesn't invalidate the shape (an ecDNA gap touching
 	// an inversion is still an ecDNA formation).
@@ -2536,7 +2465,7 @@ inline std::vector<SDRchromosomeRingEvent> detectChromosomeRings(const SDRsubHea
 // exactly match the second record's excised fragment (within tolerance).
 inline std::vector<SDRdeletionInversionEvent> detectDeletionInversions(const SDRsubHeader& subHeader, int numOriginalStrands, const SDRmasterHeader& masterHeader, bool applyHierarchy = true)
 {
-    const double delInvTolerance = 0.000050;					// 50 bp
+    const double delInvTolerance = svToleranceMbp;					// Fewer than 100 bases missing = touching (see svToleranceMbp)
 
     std::vector<SDRdeletionInversionEvent> delInvs;
 
@@ -2631,7 +2560,7 @@ inline std::vector<SDRdeletionInversionEvent> detectDeletionInversions(const SDR
 // breakpoint), i.e. material between them is missing. If so, populates gapStart/gapEnd with the gap's bounds.
 inline bool fragmentsHaveGap(const SDRfragment& fragment1, const SDRfragment& fragment2, double& gapStart, double& gapEnd)
 {
-    const double delTolerance = 0.000050; 				// Tolerance for base pair positioning mismatch for deletions is 0.000050 Mbp = 50 bp or less
+    const double delTolerance = svToleranceMbp;					// Fewer than 100 bases missing = touching (see svToleranceMbp)
 
     if (fragment1.oldStrandID != fragment2.oldStrandID)		// Both fragments being compared must have the same old strand ID
     {
@@ -2688,7 +2617,7 @@ inline std::vector<SDRdeletionTranslocationEvent> detectDeletionTranslocations(c
     std::vector<SDRdeletionTranslocationEvent> delTras;					// Store deletion-translocation events
 
     const std::vector<SDRdataRecord>& records = subHeader.dataRecords;
-    const double tolerance = 0.000050;							// Deletion base mismatch tolerance ~ 50 bp = 0.000050 Mbp
+    const double tolerance = svToleranceMbp;					// Fewer than 100 bases missing = touching (see svToleranceMbp)
 
     // Single-use function to determine which fragments in a record should be considered for deletion-translocation.
     auto getRecordStrandFragments = [&](const SDRdataRecord& record, std::map<int, std::vector<SDRfragment>>& byStrand) -> bool
@@ -2933,7 +2862,7 @@ inline std::vector<SDRdeletionTranslocationEvent> detectDeletionTranslocations(c
 // split by the inserted piece.
 inline std::vector<SDRdeletionInsertionEvent> detectDeletionInsertions(const SDRsubHeader& subHeader, int numOriginalStrands, bool applyHierarchy)
 {
-    const double tolerance = 0.000050;						// ~50 bp
+    const double tolerance = svToleranceMbp;					// Fewer than 100 bases missing = touching (see svToleranceMbp)
 
     std::vector<SDRdeletionInsertionEvent> delInsEvents;
 
@@ -3289,7 +3218,7 @@ inline std::vector<SDRchromoplexyEvent> detectChromoplexy(const SDRsubHeader& su
 // however many, keep this order. Also tries the pieces read from the other end, since a chromosome can be listed from either end.
 inline bool piecesInOriginalOrder(const std::vector<SDRfragment>& pieces)
 {
-    const double tolerance = 0.000050;						// 50 bp
+    const double tolerance = svToleranceMbp;					// Fewer than 100 bases missing = touching (see svToleranceMbp)
 
     auto inOrder = [tolerance](const std::vector<SDRfragment>& fragments) -> bool
     {
@@ -3372,12 +3301,6 @@ inline bool isNonSequentialRearrangement(const SDRdataRecord& record, std::size_
 }
 
 
-
-
-
-
-
-
 // True when a record joining two or more chromosomes carries exchanged material that was itself shattered: one chromosome's consecutive pieces (2 or more)
 // are out of their original order, or the piece meeting the other chromosome is inverted on its own, e.g. 13/132.6/14.4, 13/1.9/14.4, 34/121.8/132.6: chr 13
 // broke at 14.4 and the piece next to the junction flipped before joining chr 34. A plain translocation exchanges each chromosome's material
@@ -3422,14 +3345,6 @@ inline bool hasShatteredExchangedMaterial(const SDRdataRecord& record)
 
     return false;
 }
-
-
-
-
-
-
-
-
 
 
 // Same underlying strand-connectivity graph as detectChromoplexy(), built from raw fragment data, so clustering doesn't depend on any named mutation shape. Components of
@@ -3607,13 +3522,6 @@ inline std::vector<SDRchromothripsisEvent> detectShatteredClusters(const SDRsubH
 }
 
 
-
-
-
-
-
-
-
 // Chromothripsis: a 1-2 strand cluster with 10+ fragments (see detectShatteredClusters()).
 inline std::vector<SDRchromothripsisEvent> detectChromothripsis(const SDRsubHeader& subHeader, int numOriginalStrands, int minFragmentCount)
 {
@@ -3629,14 +3537,6 @@ inline std::vector<SDRcomplexRearrangementEvent> detectComplexGenomicRearrangeme
 }
 
 
-
-
-
-
-
-
-
-
 // Counts the detected mutations of one cell per original strand, for the web viewer's per-chromosome popups.
 // Uses the same detection functions (and hierarchy) as the SDR summary file, so the numbers agree with it.
 // A mutation involving several strands (e.g. a translocation between chromosomes 5 and 12) is counted once on each strand involved,
@@ -3644,7 +3544,7 @@ inline std::vector<SDRcomplexRearrangementEvent> detectComplexGenomicRearrangeme
 // Exception: a dicentric is counted only on the chromosome slot it is drawn in, not on the partner left acentric.
 // A chromosome with a change that none of the other mutation types accounts for gets one "Complex Genomic Rearrangements" entry, even if it has other
 // mutations. Those chromosomes are also returned in unexplainedStrandsOut when it is given (see countComplexGenomicRearrangements()).
-// Indels (<= 50 bp) are counted once per site on the strand that received them. Every other type, including the CGR catch-all, is detected on the
+// Indels (< 100 bp) are counted once per site on the strand that received them. Every other type, including the CGR catch-all, is detected on the
 // cell with its indels removed (see removeIndels()), so an indel never makes a chromosome count as a complex genomic rearrangement.
 inline std::map<int, std::vector<std::pair<std::string, int>>> countMutationsPerOriginalStrand(const SDRsubHeader& rawSubHeader, const SDRmasterHeader& masterHeader,
                                                                                               std::set<int>* unexplainedStrandsOut = nullptr)
@@ -3725,7 +3625,7 @@ inline std::map<int, std::vector<std::pair<std::string, int>>> countMutationsPer
     // Each strand's material in each rearranged record (other than a plain, whole, forward copy) must be accounted for by an event, and so must each of
     // its reversed fragments and each of its gaps. A strand with anything left over gets one Complex Genomic Rearrangements entry.
     {
-        const double tolerance = 0.000050;					// 50 bp, the loosest detector tolerance
+        const double tolerance = svToleranceMbp;				// 99 bases missing at most, the loosest detector tolerance
         typedef std::pair<int, int> RecordStrand;				// {newStrandID, oldStrandID}
         typedef std::array<double, 3> StrandRange;				// {oldStrandID, low, high}
 
@@ -4034,18 +3934,6 @@ inline std::map<int, std::vector<std::pair<std::string, int>>> countMutationsPer
 
     return result;
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 // Number of complex genomic rearrangements in one cell, for the Mutation Summary and the karyogram's box: the 1-2 strand clusters with 4+ pieces out

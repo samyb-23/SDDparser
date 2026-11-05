@@ -730,7 +730,7 @@ bool SDRparser::writeSummary(
                << "\"Complex Genomic Rearrangements\" counts clusters with 4 or more pieces of a chromosome out of order or with broken-up\n"
                << "material exchanged between chromosomes, plus one for every chromosome with a change that none of the other mutation\n"
                << "types accounts for (e.g. an inversion reaching a chromosome end), even when it also has other mutations.\n"
-               << "Indels (insertions/deletions of <= 50 bp) are counted once per site, under the chromosome that received them only\n"
+               << "Indels (insertions/deletions of < 100 bp) are counted once per site, under the chromosome that received them only\n"
                << "(not the chromosomes the inserted bases were copied from). They are not drawn on the karyogram.\n\n";
     }
 
@@ -854,7 +854,7 @@ void SDRparser::writeCellDataSummary(
     // New-strand records numbered below this threshold are baseline restatements of an original chromosome, not rearrangement/mutated outcomes.
     const int numOriginalStrands = masterHeader.intactChromosomeSizes.empty() ? 0 : static_cast<int>(masterHeader.intactChromosomeSizes[0]);
 
-    // Indels (<= 50 bp) are counted on the cell as written; every other mutation type is detected with the indels taken out (see removeIndels).
+    // Indels (< 100 bp) are counted on the cell as written; every other mutation type is detected with the indels taken out (see removeIndels).
     std::vector<SDRindelEvent> indels;
     const SDRsubHeader subHeader = removeIndels(rawSubHeader, numOriginalStrands, &indels);
 
@@ -885,7 +885,7 @@ void SDRparser::writeCellDataSummary(
     output << "  Complex Genomic Rearrangements: " << complexRearrangements << "\n";
     output << "  Ring Chromosomes: " << chromosomeRings.size() << "\n";
     output << "  Dicentrics: " << dicentrics.size() << "\n";
-    output << "  Indels (<= 50 bp): " << indels.size() << "\n";
+    output << "  Indels (< 100 bp): " << indels.size() << "\n";
 
     // Per-chromosome breakdown, in the same layout as the SDD summary's "Damage by chromosome". Only chromosomes with at
     // least one mutation are listed, and only the mutation types they have. Uses the same counting as the web viewer's

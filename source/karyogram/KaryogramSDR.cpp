@@ -25,7 +25,7 @@ static constexpr double circleColumnGap = 12.0;
 // those gaps included, and sets hasGap when at least one exists. Mirrors the gap rule of buildMixedStrandSegmentsWithGaps().
 static double mixedRecordLengthWithHomeGaps(const SDRdataRecord& record, int homeOldStrandID, bool& hasGap)
 {
-    const double tolerance = 0.000050;
+    const double tolerance = svToleranceMbp;					// Fewer than 100 bases missing = touching (see svToleranceMbp)
     double totalLengthMbp = 0.0;
     hasGap = false;
 
@@ -135,7 +135,7 @@ bool Karyogram::renderSDRkaryogram(					// Function to draw a karyogram of the r
         return false;
     }
 
-    // Indels (<= 50 bp) are only counted, never drawn: the chromosomes are drawn from the cell with its indels taken out (see removeIndels), so an
+    // Indels (< 100 bp) are only counted, never drawn: the chromosomes are drawn from the cell with its indels taken out (see removeIndels), so an
     // inserted base or a 5 bp gap neither adds a sliver of another chromosome's colour nor splits a piece. The summary box still counts them.
     const SDRsubHeader subHeader = removeIndels(rawSubHeader, static_cast<int>(sizes[0]));
 
@@ -1061,7 +1061,7 @@ void Karyogram::drawPaintedFragment(			// Function to draw the individual fragme
     // Draw white segments on chromosomes where deletions occurred instead of truncating the chromosome, for clarity.
     const auto isWhiteColor = [](const RGB& color)
     {
-        const double tolerance = 0.000050;					// >= 50 bp for a long deletion to occur
+        const double tolerance = svToleranceMbp;					// Fewer than 100 bases missing = touching (see svToleranceMbp)
         return std::fabs(color.r - 1.0) < tolerance && std::fabs(color.g - 1.0) < tolerance && std::fabs(color.b - 1.0) < tolerance;
     };
 
@@ -1302,7 +1302,7 @@ void Karyogram::drawStackedMutations(
         const bool hasCircularPiece = std::any_of(gapPieceRecords.begin(), gapPieceRecords.end(), [](const SDRdataRecord* piece) { return !piece->linear; });
         const double excisedColumnCenterX = remainingBarX + chromosomeWidth + (hasCircularPiece ? circleColumnGap : stackGap) + column2Width / 2.0;
         const double verticalGap = 6.0;
-        const double delTolerance = 0.000050;
+        const double delTolerance = svToleranceMbp;					// Fewer than 100 bases missing = touching (see svToleranceMbp)
         double excisedY = posY;
 
         for (const SDRdataRecord* piece : gapPieceRecords)
@@ -1378,7 +1378,7 @@ void Karyogram::drawStackedMutations(
         const double barX = slotCenterX - totalWidth / 2.0;
         const double verticalGap = 6.0;
         double excisedY = posY;
-        const double delTolerance = 0.000050;					// >= 50 bp tolerance for long deletion structural variations
+        const double delTolerance = svToleranceMbp;					// Fewer than 100 bases missing = touching (see svToleranceMbp)
 
         for (const SDRdataRecord* record : excisedRecords)
         {
@@ -1484,7 +1484,7 @@ void Karyogram::drawStackedMutations(
         const double fragHigher = std::max(excisedFragment.oldStartPosition, excisedFragment.oldEndPosition);
         const double excisedLengthMbp = fragHigher - fragLower;
 
-        const double delTolerance = 0.000050;					// 0.000050 Mbp = 50 bp
+        const double delTolerance = svToleranceMbp;					// Fewer than 100 bases missing = touching (see svToleranceMbp)
 	// Booleans to decide if the deleted segment was at a chromosome end, and if it should draw a rounded cap to indicate the deletion occurred at an end.
         const bool roundTopCap = approxEqual(fragLower, 0.0, delTolerance);
         const bool roundBottomCap = (originalSizeMbp > 0.0) ? approxEqual(fragHigher, originalSizeMbp, delTolerance) : false;
@@ -1572,7 +1572,7 @@ void Karyogram::drawStackedMutations(
         }
 
         const double verticalGap = 6.0;
-        const double delTolerance = 0.000050;						// 0.000050 Mbp = 50 bp
+        const double delTolerance = svToleranceMbp;					// Fewer than 100 bases missing = touching (see svToleranceMbp)
         std::vector<double> pieceHeights;
         computeExcisedColumnLayout(otherRecords, maxLengthMbp, maxRenderHeight, maxRenderHeight, verticalGap, pieceHeights);
 
@@ -1881,7 +1881,7 @@ std::vector<PaintedSegment> Karyogram::buildDeletionRemainingSegments(
     };
 
 
-    const double delTolerance = 0.000050;					// 0.000050 Mbp = 50 bp for minimum tolerance for long deletion structural variations
+    const double delTolerance = svToleranceMbp;					// Fewer than 100 bases missing = touching (see svToleranceMbp)
 
 
     // Leading white gap if the first fragment doesn't start at position 0, a terminal deletion removed the chromosome's start.
@@ -1909,7 +1909,7 @@ std::vector<PaintedSegment> Karyogram::buildDeletionRemainingSegments(
             const double gapStart = std::max(fragments[i].oldStartPosition, fragments[i].oldEndPosition);
             const double gapEnd = std::min(fragments[i + 1].oldStartPosition, fragments[i + 1].oldEndPosition);
 
-            // Same 50 bp tolerance as the leading/trailing gaps and the detectors: pieces listed on neighbouring bases (e.g. 120.000000 then
+            // Same tolerance as the leading/trailing gaps and the detectors (svToleranceMbp): pieces listed on neighbouring bases (e.g. 120.000000 then
             // 120.000001) touch, so no white sliver is drawn between them.
             if (gapEnd > gapStart && !approxEqual(gapStart, gapEnd, delTolerance))
             {
@@ -1982,7 +1982,7 @@ std::vector<PaintedSegment> Karyogram::buildMixedStrandSegmentsWithGaps(
         return segments;
     }
 
-    const double tolerance = 0.000050;
+    const double tolerance = svToleranceMbp;					// Fewer than 100 bases missing = touching (see svToleranceMbp)
 
     struct PlannedPiece
     {

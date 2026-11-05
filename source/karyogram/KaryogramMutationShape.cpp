@@ -112,7 +112,7 @@ bool Karyogram::isChromosomeRingShape(const std::vector<const SDRdataRecord*>& r
         return false;
     }
 
-    const double delTolerance = 0.000050;					// 50 bp = 0.000050 Mbp. Minimum tolerance for a long deletion SV to occur.
+    const double delTolerance = svToleranceMbp;					// Fewer than 100 bases missing = touching (see svToleranceMbp)
 
     const double firstLo = std::min(allPieces.front().fragment.oldStartPosition, allPieces.front().fragment.oldEndPosition);
     const double lastHi = std::max(allPieces.back().fragment.oldStartPosition, allPieces.back().fragment.oldEndPosition);
@@ -231,7 +231,7 @@ bool Karyogram::isDeletionTranslocationDonorShape(const std::vector<const SDRdat
             continue;
         }
 
-        const double tolerance = 0.000050;
+        const double tolerance = svToleranceMbp;					// Fewer than 100 bases missing = touching (see svToleranceMbp)
         const double prevLo = std::min(previous.oldStartPosition, previous.oldEndPosition);
         const double prevHi = std::max(previous.oldStartPosition, previous.oldEndPosition);
         const double curLo = std::min(current.oldStartPosition, current.oldEndPosition);
@@ -306,7 +306,7 @@ bool Karyogram::isLoneGapShape(const std::vector<const SDRdataRecord*>& records,
         return std::min(a.oldStartPosition, a.oldEndPosition) < std::min(b.oldStartPosition, b.oldEndPosition);
     });
 
-    const double tolerance = 0.000050;
+    const double tolerance = svToleranceMbp;					// Fewer than 100 bases missing = touching (see svToleranceMbp)
     bool hasGap = false;
 
     for (std::size_t i = 0; i + 1 < sortedFragments.size(); ++i)
@@ -421,7 +421,7 @@ bool Karyogram::isDeletionInversionShape(const std::vector<const SDRdataRecord*>
         return false; // The excised piece itself should not be reversed.
     }
 
-    const double delTolerance = 0.000050;
+    const double delTolerance = svToleranceMbp;					// Fewer than 100 bases missing = touching (see svToleranceMbp)
     int gapCount = 0;
     bool gapMatchesExcised = false;
 
@@ -547,7 +547,7 @@ bool Karyogram::isECDNAshape(const std::vector<const SDRdataRecord*>& records, i
     });
 
 
-    const double delTolerance = 0.000050;
+    const double delTolerance = svToleranceMbp;					// Fewer than 100 bases missing = touching (see svToleranceMbp)
     std::vector<std::pair<double, double>> gaps;
 
     const std::size_t sizeIndex = static_cast<std::size_t>(homeOldStrandID);
@@ -717,7 +717,7 @@ bool Karyogram::isDeletionShape(const std::vector<const SDRdataRecord*>& records
         return std::min(a.oldStartPosition, a.oldEndPosition) < std::min(b.oldStartPosition, b.oldEndPosition);
     });
 
-    const double delTolerance = 0.000050;
+    const double delTolerance = svToleranceMbp;					// Fewer than 100 bases missing = touching (see svToleranceMbp)
     std::vector<std::pair<double, double>> gaps;
 
 
@@ -846,12 +846,12 @@ bool Karyogram::isDeletionShape(const std::vector<const SDRdataRecord*>& records
 //     (internal or terminal) between its fragments,
 //   - zero or more "pieces": linear single-fragment excised records (not reversed), or acentric circular (ecDNA) records.
 // Pieces are OPTIONAL and need not match any gap: the SDR file draws what it implies. A gap with no piece is just white space.
-// Uses the same gap logic (analyzeFlankingFragments) and 50 bp tolerance as the detectors in SDRutilities.h.
+// Uses the same gap logic (analyzeFlankingFragments) and tolerance (svToleranceMbp) as the detectors in SDRutilities.h.
 // ------------------------------------------------------------------------------------------------------------------------------ //
 bool Karyogram::analyzeHomeStrandGapShape(const std::vector<const SDRdataRecord*>& records, int homeOldStrandID, const SDRmasterHeader& masterHeader,
                                           const SDRdataRecord*& remainingRecord, std::vector<const SDRdataRecord*>& pieceRecords)
 {
-    const double delTolerance = 0.000050;			// Same as the detectors
+    const double delTolerance = svToleranceMbp;					// Fewer than 100 bases missing = touching (see svToleranceMbp)
     const std::size_t chromothripsisFragmentThreshold = 10;	// Same default as detectChromothripsis(); such strands are drawn as concatenated shatter, not as gaps.
 
     remainingRecord = nullptr;

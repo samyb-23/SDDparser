@@ -212,7 +212,27 @@ within a given damage site (i.e. a given SDD data row) (usually between 0-5 SSBs
    except dicentrics, which are listed only under the chromosome drawn with two centromeres (not under the partner left acentric). A note at
    the top of the summary file explains this. A chromosome with a change that none of the other mutation types below explains is counted
    as one complex genomic rearrangement, in the per-chromosome list, the cell's mutation totals and the karyogram's summary box.
-6. Indel mutations are now detected and specified in the SDR summary file, and the summary box at the top of each karyogram, but they are not drawn.
+6. Indel mutations are detected and counted in the SDR summary file (per cell and per chromosome), the summary box at the top of each
+   karyogram and the per-chromosome popups, but they are not drawn. Each indel site is counted once, under the chromosome that received it.
+
+#### Size threshold between indels and structural variations
+
+Following Youk et al. 2024, **indels are smaller than 100 bp and structural variations (SVs) are 100 bp or larger**:
+
+| Size of the change | Classified as |
+|---|---|
+| 1 to 99 bases deleted and/or inserted at one site | Indel (counted only, never drawn) |
+| 100 or more bases | Structural variation (long deletion, deletion-insertion, deletion-inversion, deletion-translocation, ecDNA, ...) |
+
+- Positions are base coordinates (1 bp = 0.000001 Mbp). Consecutive bases such as 50.000000 and 50.000001 are touching (nothing
+  missing), and the number of deleted bases is the distance minus 1 base. For example, 50.000000 followed by 50.000100 leaves out
+  99 bases (indel), while 50.000000 followed by 50.000101 leaves out 100 bases (long deletion).
+- A small insertion is a run of one-base pieces (start == end) copied from anywhere in the genome; 99 or fewer inserted bases is an indel.
+- An indel deletion may optionally have its deleted bases listed as their own record (linear or circular, in either orientation). That
+  record is scored as part of the indel, not as ecDNA or a long deletion, and is not drawn. A circle of 100 bases or more is ecDNA.
+- The same 100 bp threshold is the tolerance at breakpoints for every SV detector: fewer than 100 bases missing between two pieces
+  counts as touching. A balanced inversion or balanced translocation can therefore lose up to 99 bases at its breakpoints and still be
+  balanced; losing 100 bases or more makes it a deletion-inversion or deletion-translocation.
 
 #### How mutations are classified
 
@@ -444,7 +464,7 @@ karyogram.generateSDRkaryogram(parser.getMasterHeader(), subHeader, /*humanGenom
 
 ### Library version — `KaryoKEversion.h`
 
-`KARYOKE_VERSION` and `karyoke::KARYOKE_VERSION_TEXT hold the version. It is included by
+`KARYOKE_VERSION` and `karyoke::KARYOKE_VERSION_TEXT` hold the version. It is included by
 `KaryoKElibrary.h`, and is the one place to change when releasing a new version: the CLI, the summary files and the web viewer all read it.
 
 
@@ -671,6 +691,6 @@ Example SDR file mutated data entries for each type, the exact same as exampleSD
 
 0; 105; 35/0/40.000000/1, 10/124.178923/124.178923/0, 7/98.102345/98.102345/0, 46/0.890012/0.890012/0, 35/40.000001/121.3/0; 1;
 
-- Indel deletion of 36 bases (same format as a long deletion, but <= 50 bases in length)
+- Indel deletion of 36 bases (same format as a long deletion, but fewer than 100 bases missing; 100 bases or more is a long deletion)
 
 0; 106; 37/0/50.000000/1, 37/50.000037/106.9/0; 1;

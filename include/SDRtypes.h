@@ -242,13 +242,13 @@ struct SDRchromothripsisEvent
 // so it carries the same information.
 using SDRcomplexRearrangementEvent = SDRchromothripsisEvent;
 
-// Represents a detected indel: a small insertion and/or deletion of <= 50 bp at one site of one record. Indels are
-// counted only, never drawn. A small deletion is a gap of <= 50 bp between two consecutive pieces of the same strand
+// Represents a detected indel: a small insertion and/or deletion of < 100 bp at one site of one record. Indels are
+// counted only, never drawn. A small deletion is a gap of < 100 bp between two consecutive pieces of the same strand
 // (e.g. 1/0/50.000000/0, 1/50.000005/132.6/1), with no excised record. A small insertion is a run of one-base pieces
 // copied from anywhere in the genome (start == end, e.g. 5/73.187925/73.187925/0) sitting between two pieces of the
 // receiving strand. A deletion and an insertion at the same site are one indel. Like a long deletion, the deleted bases
 // may also be listed as their own excised record (e.g. 1/50.000001/50.000004/0), linear or circular, in either orientation
-// (a <= 50 bp ecDNA cut from the gap is scored as this indel, not as ecDNA, and is not drawn), or be absent.
+// (a < 100 bp ecDNA cut from the gap is scored as this indel, not as ecDNA, and is not drawn), or be absent.
 struct SDRindelEvent
 {
     int oldStrandID;		// Strand that received the indel (the strand of the piece left of the site), never the source of inserted bases

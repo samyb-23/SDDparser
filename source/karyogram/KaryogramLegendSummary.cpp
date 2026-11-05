@@ -364,7 +364,7 @@ void Karyogram::drawSDRsummary(cairo_t* cr, const SDRmasterHeader& masterHeader,
 {
     const int numOriginalStrands = masterHeader.intactChromosomeSizes.empty() ? 0 : static_cast<int>(masterHeader.intactChromosomeSizes[0]);
 
-    // Indels (<= 50 bp) are counted on the cell as written; every other mutation type is detected with the indels taken out (see removeIndels).
+    // Indels (< 100 bp) are counted on the cell as written; every other mutation type is detected with the indels taken out (see removeIndels).
     std::vector<SDRindelEvent> indels;
     const SDRsubHeader subHeader = removeIndels(rawSubHeader, numOriginalStrands, &indels);
 
@@ -441,7 +441,7 @@ void Karyogram::drawSDRsummary(cairo_t* cr, const SDRmasterHeader& masterHeader,
     cairo_show_text(cr, ("Complex Genomic Rearrangements: " + std::to_string(complexRearrangements)).c_str());
 
     cairo_move_to(cr, summaryX + 615.0, fifthRowY);						// Third column: the CGR label is too wide to share its row's middle column.
-    cairo_show_text(cr, ("Indels (<= 50 bp): " + std::to_string(indels.size())).c_str());
+    cairo_show_text(cr, ("Indels (< 100 bp): " + std::to_string(indels.size())).c_str());
 
 }
 
