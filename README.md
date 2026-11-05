@@ -223,7 +223,7 @@ event, only the higher-tier event is counted:
 
 | Tier | Mutation types |
 |---|---|
-| 1 Simple mutations| Deletions, balanced inversions, balanced translocations |
+| 1 Simple mutations| Long deletions, balanced inversions, balanced translocations |
 | 2 Composite Mutations| Deletion-insertions, deletion-inversions, deletion-translocations |
 | 3 Complex Genomic Rearrangements| ecDNA, chromoplexy, chromothripsis, and other mutations not included in any previous class |
 
